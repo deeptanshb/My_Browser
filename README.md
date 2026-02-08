@@ -477,9 +477,10 @@ My_Browser/
 ├── 🙈 .gitignore               # Git ignore rules
 │
 ├── 📂 screenshots/              # Screenshot images
-│   ├── Screenshot.png           # Main browser screenshot
-│   ├── Screenshot_browser.png   # Home screen
-│   └── Screenshot_chatbot.png   # AI chatbot interface
+│   ├── screenshot.png           # Main browser screenshot
+│   ├── screenshot_browser.png   # Home screen
+│   ├── screenshot_chatbot.png   # AI chatbot interface
+│   └── screenshot_logs.png      # Privacy logs & settings 
 │
 └── 📂 ~/.mybrowser/             # User data directory (auto-created)
     ├── ⚙️ settings.json         # Browser settings
