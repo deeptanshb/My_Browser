@@ -501,14 +501,17 @@ My_Browser/
 
 ### Home Screen
 ![Home Screen](screenshots/Screenshot_browser.png)
+
 *Beautiful gradient homepage with search bar and quick links*
 
 ### AI Chatbot
 ![AI Chatbot](screenshots/Screenshot%20_chatbot.png)
+
 *DeepTalks.AI chatbot with code formatting and copy buttons*
 
 ### Privacy Logs
 ![Privacy Logs](screenshots/Screenshot_logs.png)
+
 *View all your browsing history and searches*
 
 </div>
