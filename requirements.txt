@@ -1,0 +1,25 @@
+# My Browser - Privacy Edition
+# Python 3.8+ required
+
+# Core GUI Framework
+PyQt6==6.7.0
+PyQt6-WebEngine==6.7.0
+PyQt6-Qt6==6.7.2
+PyQt6-sip==13.8.0
+
+# Additional dependencies (usually installed with PyQt6)
+# These are typically bundled, but listed for clarity
+
+# Optional: For better error handling and debugging
+# (No additional packages required - everything is built-in!)
+
+# Note: This browser works with standard Python libraries:
+# - json (built-in)
+# - os (built-in)
+# - sys (built-in)
+# - datetime (built-in)
+
+# Platform-specific notes:
+# - Windows: PyQt6 installs automatically
+# - Linux: May need system packages (see README)
+# - macOS: PyQt6 installs automatically
