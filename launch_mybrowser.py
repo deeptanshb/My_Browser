@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 """
-My Browser Launcher with Terminal Monitoring and Ollama Integration
-Automatically starts the browser and CORS proxy for AI features
+My Browser Launcher - Complete Edition
+Features:
+- AI Chatbot (Ollama integration)
+- Microservices (Network Monitor, IP Masking, Social Tabs, Security Dashboard)
+- CORS Proxy Management
+- Comprehensive Logging
 """
+import os
+
+os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer"
+os.environ["QT_OPENGL"] = "software"
 
 import sys
 import os
@@ -10,7 +19,6 @@ import logging
 from datetime import datetime
 import subprocess
 import time
-import signal
 import atexit
 
 # Change to script directory first
@@ -29,7 +37,7 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
         logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stdout)  # Also print to terminal
+        logging.StreamHandler(sys.stdout)
     ]
 )
 
@@ -53,7 +61,6 @@ def cleanup_proxy():
             except:
                 pass
 
-# Register cleanup function
 atexit.register(cleanup_proxy)
 
 def check_ollama_running():
@@ -73,14 +80,12 @@ def start_cors_proxy():
     """Start the CORS proxy if Ollama is running"""
     global proxy_process
     
-    # Check if proxy file exists
     proxy_file = os.path.join(script_dir, 'ollama_cors_proxy.py')
     if not os.path.exists(proxy_file):
         logger.warning("⚠️  ollama_cors_proxy.py not found - AI features may not work")
         return False
     
     try:
-        # Start proxy in background
         proxy_log = os.path.join(log_dir, f"proxy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
         with open(proxy_log, 'w') as log:
             proxy_process = subprocess.Popen(
@@ -90,12 +95,9 @@ def start_cors_proxy():
                 start_new_session=True
             )
         
-        # Wait a moment for proxy to start
         time.sleep(2)
         
-        # Check if it's running
         if proxy_process.poll() is None:
-            # Verify proxy is accessible
             try:
                 import requests
                 response = requests.get('http://localhost:8081/api/tags', timeout=2)
@@ -106,7 +108,7 @@ def start_cors_proxy():
             except:
                 pass
         
-        logger.warning("⚠️  CORS proxy failed to start - check dependencies")
+        logger.warning("⚠️  CORS proxy failed to start")
         proxy_process = None
         return False
         
@@ -114,6 +116,32 @@ def start_cors_proxy():
         logger.warning(f"⚠️  Could not start CORS proxy: {e}")
         proxy_process = None
         return False
+
+def check_microservices():
+    """Check if microservices modules are available"""
+    modules_dir = os.path.join(script_dir, 'modules')
+    if not os.path.exists(modules_dir):
+        return False, []
+    
+    required_modules = [
+        '__init__.py',
+        'network_interceptor.py',
+        'ip_masking.py',
+        'social_tabs.py',
+        'security_monitor.py'
+    ]
+    
+    found_modules = []
+    missing_modules = []
+    
+    for module in required_modules:
+        module_path = os.path.join(modules_dir, module)
+        if os.path.exists(module_path):
+            found_modules.append(module)
+        else:
+            missing_modules.append(module)
+    
+    return len(missing_modules) == 0, found_modules
 
 def check_dependencies():
     """Check if required dependencies are installed"""
@@ -138,101 +166,138 @@ def check_dependencies():
     
     return missing
 
-logger.info("=" * 60)
-logger.info("🦕 MY BROWSER LAUNCHER WITH AI")
-logger.info("=" * 60)
-logger.info(f"Working directory: {os.getcwd()}")
-logger.info(f"Log file: {log_file}")
-logger.info(f"Starting browser at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+# ============================================
+# MAIN LAUNCHER
+# ============================================
+
+logger.info("=" * 70)
+logger.info("🦕 MY BROWSER - COMPLETE EDITION")
+logger.info("   AI Chatbot + Advanced Security Microservices")
+logger.info("=" * 70)
+logger.info(f"📂 Working directory: {os.getcwd()}")
+logger.info(f"📝 Log file: {log_file}")
+logger.info(f"🕐 Starting at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+logger.info("")
 
 try:
     # Check dependencies
-    logger.info("Checking dependencies...")
+    logger.info("🔍 Checking dependencies...")
     missing_deps = check_dependencies()
     
     if missing_deps:
         logger.error(f"❌ Missing dependencies: {', '.join(missing_deps)}")
-        print("\n" + "=" * 60)
+        print("\n" + "=" * 70)
         print("ERROR: Missing dependencies!")
-        print("=" * 60)
+        print("=" * 70)
         for dep in missing_deps:
             if dep == "PyQt6":
-                print("Install PyQt6: sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine")
-        print("=" * 60)
+                print("Install: sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine")
+        print("=" * 70)
         input("\nPress Enter to exit...")
         sys.exit(1)
     
+    # Check Microservices
+    logger.info("")
+    logger.info("🔧 Checking microservices modules...")
+    microservices_ok, found_modules = check_microservices()
+    
+    if microservices_ok:
+        logger.info(f"✅ All microservices modules found ({len(found_modules)} files)")
+        logger.info("   📱 Social Media Quick Access")
+        logger.info("   🎭 IP Masking Monitor")
+        logger.info("   🌐 Network Request Interceptor")
+        logger.info("   🛡️  Security Dashboard")
+    else:
+        logger.warning("⚠️  Microservices modules not found or incomplete")
+        logger.info("   Browser will run with basic features only")
+    
     # Check Ollama status
     logger.info("")
-    logger.info("📡 Checking Ollama status...")
+    logger.info("🔡 Checking Ollama status...")
     ollama_running, models = check_ollama_running()
     
     if ollama_running:
         logger.info(f"✅ Ollama is running with {len(models)} model(s)")
-        for model in models[:3]:  # Show first 3 models
+        for model in models[:3]:
             logger.info(f"   • {model.get('name', 'unknown')}")
         
-        # Start CORS proxy
         logger.info("")
         logger.info("🚀 Starting CORS proxy for AI features...")
         proxy_started = start_cors_proxy()
         
         if proxy_started:
-            # Use custom.py (already has CORS fix with port 8080)
-            browser_file = 'custom.py'
-            logger.info("✅ Using custom.py with CORS fix")
+            logger.info("✅ AI chatbot fully enabled")
         else:
-            browser_file = 'custom.py'
+            logger.warning("⚠️  CORS proxy failed - AI may have limited functionality")
     else:
         logger.warning("⚠️  Ollama not running")
         logger.info("   AI chatbot will be in fallback mode")
-        logger.info("   To enable AI: run 'ollama serve' in another terminal")
-        browser_file = 'custom.py'
+        logger.info("   To enable: run 'ollama serve' in another terminal")
     
+    # Import and run browser
     logger.info("")
-    logger.info("Loading browser modules...")
+    logger.info("📦 Loading browser modules...")
     
-    # Import PyQt6
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtGui import QFont
     logger.info("✅ PyQt6 loaded")
     
-    # Import browser
-    logger.info(f"Importing browser from custom.py...")
+    logger.info(f"📥 Importing browser from custom.py...")
     from custom import ModernBrowser
     
-    logger.info("Initializing Qt Application...")
+    logger.info("🎨 Initializing Qt Application...")
     app = QApplication(sys.argv)
-    app.setApplicationName("My Browser - Custom Design")
+    app.setApplicationName("My Browser - Complete Edition")
     app.setOrganizationName("MyBrowser")
     
-    # Set application font
     font = QFont("Segoe UI", 10)
     app.setFont(font)
     
-    logger.info("Creating browser window...")
+    logger.info("🪟 Creating browser window...")
     window = ModernBrowser()
     
     logger.info("✅ Browser successfully initialized!")
-    logger.info("🌐 Opening browser window...")
-    window.show()
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("🌐 BROWSER IS NOW RUNNING!")
+    logger.info("=" * 70)
+    logger.info("")
+    logger.info("📋 FEATURES AVAILABLE:")
+    logger.info("   ✅ All search engines (Google, Brave, DuckDuckGo, etc.)")
+    logger.info("   ✅ Privacy logging & bookmarks")
+    logger.info("   ✅ Extensions system")
+    logger.info("   ✅ Download manager")
+    
+    if ollama_running and proxy_started:
+        logger.info("   ✅ 🤖 AI Chatbot (DeepTalks.ai with Ollama)")
+    elif ollama_running:
+        logger.info("   ⚠️  🤖 AI Chatbot (limited - CORS proxy failed)")
+    else:
+        logger.info("   ⚠️  🤖 AI Chatbot (fallback mode - Ollama not running)")
+    
+    if microservices_ok:
+        logger.info("   ✅ 📱 Social Media Quick Tabs (WhatsApp, Instagram, Gmail, Telegram)")
+        logger.info("   ✅ 🎭 IP Masking Monitor (4 algorithms)")
+        logger.info("   ✅ 🌐 Network Request Interceptor (Ad/tracker blocking)")
+        logger.info("   ✅ 🛡️  Security Dashboard (Real-time monitoring)")
     
     logger.info("")
-    logger.info("🦕 Browser is now running!")
-    if ollama_running and proxy_process:
-        logger.info("🤖 AI chatbot ready with Ollama integration")
-    logger.info("=" * 60)
-    logger.info("MONITORING ACTIVE - Press Ctrl+C in terminal to stop")
-    logger.info("=" * 60)
+    logger.info("=" * 70)
+    logger.info("💡 Press Ctrl+C in terminal to stop browser")
+    logger.info("=" * 70)
+    logger.info("")
+    
+    window.show()
     
     # Run the application
     exit_code = app.exec()
     
-    logger.info("=" * 60)
+    logger.info("")
+    logger.info("=" * 70)
     logger.info("🛑 Browser closed")
     logger.info(f"Exit code: {exit_code}")
-    logger.info(f"Session ended at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("=" * 60)
+    logger.info(f"🕐 Session ended at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 70)
     
     cleanup_proxy()
     sys.exit(exit_code)
@@ -247,12 +312,12 @@ except Exception as e:
     logger.error(f"❌ ERROR: Failed to start browser")
     logger.error(f"Error details: {str(e)}")
     logger.exception("Full traceback:")
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("ERROR OCCURRED!")
-    print("=" * 60)
+    print("=" * 70)
     print(f"Error: {str(e)}")
-    print(f"\nCheck the log file for details: {log_file}")
-    print("=" * 60)
+    print(f"\n📝 Check the log file for details: {log_file}")
+    print("=" * 70)
     cleanup_proxy()
     input("\nPress Enter to exit...")
     sys.exit(1)

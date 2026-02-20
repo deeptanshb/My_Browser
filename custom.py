@@ -1,7 +1,6 @@
 """
 Custom Multi-Engine Browser - Advanced Privacy Features
-With VPN proxy, secure DNS, search logging, and extensions support
-"""
+With VPN proxy, secure DNS, search logging, and extensions support\n"""
 import sys
 import json
 import os
@@ -22,6 +21,47 @@ from PyQt6.QtWebEngineCore import (
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon, QFont
 from PyQt6.QtNetwork import QNetworkProxy as QNetProxy
+
+import sys
+import os
+
+# Optional microservices
+try:
+    _mod_path = os.path.join(os.path.dirname(__file__), 'modules')
+    if _mod_path not in sys.path:
+        sys.path.insert(0, _mod_path)
+    from network_interceptor import NetworkRequestInterceptor
+    from security_monitor import SecurityMonitor
+    MODULES_AVAILABLE = True
+except:
+    MODULES_AVAILABLE = False
+    NetworkRequestInterceptor = None
+    SecurityMonitor = None
+
+
+
+# ── MICROSERVICES ──────────────────────────────────────────────
+import socket as _socket_mod
+import hashlib as _hashlib_mod
+import struct as _struct_mod
+import random as _random_mod
+import threading as _threading_mod
+
+_ms_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+if _ms_dir not in sys.path:
+    sys.path.insert(0, _ms_dir)
+
+try:
+    from modules.network_interceptor import NetworkRequestInterceptor
+    from modules.ip_masking import IPMaskingMonitor
+    from modules.social_tabs import SocialTabManager
+    from modules.security_monitor import SecurityMonitor
+    MODULES_AVAILABLE = True
+    print("✓ Microservices modules loaded")
+except ImportError as e:
+    MODULES_AVAILABLE = False
+    print(f"⚠  Microservices not loaded: {e}")
+# ──────────────────────────────────────────────────────────────
 
 # Search Engine Configuration - BROWSERS (what user sees)
 BROWSERS = {
@@ -159,50 +199,37 @@ class PrivacyLogger:
     
     def __init__(self, log_dir):
         self.log_dir = log_dir
-        # Ensure the log directory exists
-        os.makedirs(log_dir, exist_ok=True)
         self.search_log_file = os.path.join(log_dir, "search_log.txt")
         self.privacy_log_file = os.path.join(log_dir, "privacy_log.json")
         
     def log_search(self, query, engine, timestamp=None):
         """Log a search query"""
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
         try:
-            # Text log for easy reading
-            with open(self.search_log_file, 'a', encoding='utf-8') as f:
-                f.write(f"[{timestamp}] Engine: {engine} | Query: {query}\n")
-        except Exception as e:
-            print(f"Error writing to search log: {e}")
-        
-        # JSON log for programmatic access
-        try:
-            if os.path.exists(self.privacy_log_file):
-                with open(self.privacy_log_file, 'r', encoding='utf-8') as f:
-                    logs = json.load(f)
-            else:
+            if not query or not query.strip():
+                return
+            if timestamp is None:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            os.makedirs(self.log_dir, exist_ok=True)
+            try:
+                with open(self.search_log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"[{timestamp}] Engine: {engine} | Query: {query}\n")
+            except Exception:
+                pass
+            try:
+                if os.path.exists(self.privacy_log_file):
+                    with open(self.privacy_log_file, 'r', encoding='utf-8') as f:
+                        logs = json.load(f)
+                else:
+                    logs = []
+            except Exception:
                 logs = []
-        except Exception as e:
-            print(f"Error reading privacy log: {e}")
-            logs = []
-        
-        logs.append({
-            'timestamp': timestamp,
-            'type': 'search',
-            'engine': engine,
-            'query': query
-        })
-        
-        # Keep only last 10000 entries
-        if len(logs) > 10000:
-            logs = logs[-10000:]
-        
-        try:
+            logs.append({'timestamp': timestamp, 'type': 'search', 'engine': engine, 'query': query})
+            if len(logs) > 10000:
+                logs = logs[-10000:]
             with open(self.privacy_log_file, 'w', encoding='utf-8') as f:
                 json.dump(logs, f, indent=2)
-        except Exception as e:
-            print(f"Error writing to privacy log: {e}")
+        except Exception:
+            pass
     
     def log_page_visit(self, url, title=""):
         """Log a page visit"""
@@ -214,8 +241,7 @@ class PrivacyLogger:
                     logs = json.load(f)
             else:
                 logs = []
-        except Exception as e:
-            print(f"Error reading privacy log for page visit: {e}")
+        except:
             logs = []
         
         logs.append({
@@ -229,12 +255,8 @@ class PrivacyLogger:
         if len(logs) > 10000:
             logs = logs[-10000:]
         
-        try:
-            with open(self.privacy_log_file, 'w', encoding='utf-8') as f:
-                json.dump(logs, f, indent=2)
-            print(f"Logged page visit: {url}")  # Debug output
-        except Exception as e:
-            print(f"Error writing page visit to privacy log: {e}")
+        with open(self.privacy_log_file, 'w', encoding='utf-8') as f:
+            json.dump(logs, f, indent=2)
     
     def get_search_history(self, limit=100):
         """Get recent search history"""
@@ -503,7 +525,7 @@ class CustomSearchPage:
     
     @staticmethod
     def get_html():
-        return """
+        return r"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -715,82 +737,9 @@ class CustomSearchPage:
                 .message-content {
                     max-width: 80%;
                     padding: 14px 20px;
-                    padding-right: 50px;
                     border-radius: 20px;
                     word-wrap: break-word;
                     line-height: 1.5;
-                    position: relative;
-                }
-                
-                /* Small square copy button */
-                .copy-btn {
-                    position: absolute;
-                    top: 6px;
-                    right: 6px;
-                    width: 28px;
-                    height: 28px;
-                    background: rgba(255, 255, 255, 0.15);
-                    border: 1px solid rgba(255, 255, 255, 0.25);
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    opacity: 0.7;
-                    padding: 0;
-                }
-                
-                .copy-btn:hover {
-                    background: rgba(255, 255, 255, 0.25);
-                    opacity: 1;
-                    transform: scale(1.1);
-                }
-                
-                .copy-btn:active {
-                    transform: scale(0.95);
-                }
-                
-                .copy-btn.copied {
-                    background: rgba(72, 187, 120, 0.9);
-                    border-color: rgba(72, 187, 120, 1);
-                }
-                
-                /* Code block copy button */
-                .code-block-container {
-                    position: relative;
-                    margin: 10px 0;
-                }
-                
-                .code-copy-btn {
-                    position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    width: 26px;
-                    height: 26px;
-                    background: rgba(255, 255, 255, 0.12);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    border-radius: 5px;
-                    cursor: pointer;
-                    font-size: 13px;
-                    transition: all 0.2s ease;
-                    opacity: 0.6;
-                    padding: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .code-copy-btn:hover {
-                    background: rgba(255, 255, 255, 0.22);
-                    opacity: 1;
-                    transform: scale(1.1);
-                }
-                
-                .code-copy-btn.copied {
-                    background: rgba(72, 187, 120, 0.8);
-                    border-color: rgba(72, 187, 120, 0.9);
                 }
                 
                 .message.bot .message-content {
@@ -965,17 +914,17 @@ class CustomSearchPage:
                 <div class="time" id="time">00:00</div>
                 <div class="date" id="date">Loading...</div>
                 <div class="quick-links">
-                    <div class="quick-link" data-search="news">📰 News</div>
-                    <div class="quick-link" data-search="weather">🌤️ Weather</div>
-                    <div class="quick-link" data-search="videos">🎬 Videos</div>
-                    <div class="quick-link" data-search="images">🖼️ Images</div>
+                    <div class="quick-link" onclick="performSearch('news')">📰 News</div>
+                    <div class="quick-link" onclick="performSearch('weather')">🌤️ Weather</div>
+                    <div class="quick-link" onclick="performSearch('videos')">🎬 Videos</div>
+                    <div class="quick-link" onclick="performSearch('images')">🖼️ Images</div>
                 </div>
                 <div class="privacy-badge">🛡️ DNS Protected • Search Logged • Extensions Active</div>
             </div>
             
             <!-- DeepTalks.AI Chatbot -->
             <div class="chatbot-container">
-                <div class="chatbot-toggle" id="chatbotToggle">
+                <div class="chatbot-toggle" onclick="toggleChatbot()">
                     <span class="ai-badge">AI</span>
                     <span class="chatbot-toggle-icon">🦜</span>
                     <span class="chatbot-toggle-text">deeptalks.ai</span>
@@ -990,7 +939,7 @@ class CustomSearchPage:
                             </div>
                             <span class="chatbot-subtitle">Powered by Open Source LLM</span>
                         </div>
-                        <button class="chatbot-close" id="chatbotClose">×</button>
+                        <button class="chatbot-close" onclick="toggleChatbot()">×</button>
                     </div>
                     
                     <div class="model-indicator" id="modelIndicator">
@@ -1000,26 +949,38 @@ class CustomSearchPage:
                     <div class="chatbot-messages" id="chatMessages">
                         <div class="message bot">
                             <div class="message-content">
-                                👋 Hello! I am DeepTalks.AI, powered by Ollama AI models.
-                                
-                                <br><br><strong>I can help with:</strong>
-                                <br>• Coding & programming
-                                <br>• Creative writing & analysis  
-                                <br>• General knowledge & explanations
-                                
-                                <br><br><strong>🌐 For Current Events:</strong>
-                                <br>My training data is from 2023. For anything current (2024-2026), I'll:
-                                <br>1. Try to get info from Wikipedia (for facts)
-                                <br>2. Give you direct search links to Brave/Google (for latest news)
-                                
-                                <br><br><strong>💡 Pro Tip:</strong> For the freshest info, use the search bar at the top of this browser!
+                                👋 Hello! I am DeepTalks.AI, powered by real AI. I can help you with questions, creative writing, coding, analysis, and much more. I also have web search enabled for current news and real-time information! What would you like to talk about?
                             </div>
                         </div>
                     </div>
                     
+                    <!-- Attach preview (filled by Python via runJavaScript) -->
+                    <div id="attachPreview" style="display:none;padding:8px 14px;background:rgba(116,192,252,0.08);border-top:1px solid rgba(116,192,252,0.2);font-size:12px;color:#ccc;align-items:center;gap:8px;border-left:3px solid #74c0fc;"></div>
+                    
+                    <!-- Attach toolbar - visible buttons that call Python -->
+                    <div style="padding:6px 14px;display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);">
+                        <button onclick="window.pythonAttachImage()" title="Attach image" 
+                                style="background:rgba(116,192,252,0.15);border:1px solid rgba(116,192,252,0.3);color:#74c0fc;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:4px;">
+                            🖼️ <span style="font-size:12px;">Image</span>
+                        </button>
+                        <button onclick="window.pythonAttachFile()" title="Attach file (.txt .py .md .csv etc)" 
+                                style="background:rgba(116,192,252,0.15);border:1px solid rgba(116,192,252,0.3);color:#74c0fc;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:4px;">
+                            📎 <span style="font-size:12px;">File</span>
+                        </button>
+                        <div style="flex:1;"></div>
+                        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#999;">
+                            <input type="checkbox" id="webSearchToggle" checked style="cursor:pointer;accent-color:#667eea;">
+                            🔍 Web search
+                        </label>
+                    </div>
+                    <div id="searchStatus" style="padding:2px 14px;font-size:10px;color:#666;font-style:italic;min-height:14px;"></div>
+                    
+                    <!-- Input row -->
                     <div class="chatbot-input-area">
-                        <input type="text" class="chatbot-input" id="chatInput" placeholder="Ask me anything...">
-                        <button class="chatbot-send" id="sendBtn">➤</button>
+                        <input type="text" class="chatbot-input" id="chatInput"
+                               placeholder="Ask anything…"
+                               onkeypress="handleChatKeyPress(event)">
+                        <button class="chatbot-send" id="sendBtn" onclick="sendMessage()">➤</button>
                     </div>
                 </div>
             </div>
@@ -1056,413 +1017,278 @@ class CustomSearchPage:
                 document.getElementById('searchInput').focus();
                 
                 /* ================================
-                   DeepTalks.AI – FIXED CHATBOT LOGIC
-                   ================================ */
+                   DeepTalks.AI – ENHANCED: Web Search + File/Image + Sources
+                   ================================================================ */
 
                 let chatbotOpen = false;
                 let conversationHistory = [];
                 let currentModel = null;
                 let ollamaActive = false;
+                let attachedFile = null;
 
-                /* ---------- Ollama Detection ---------- */
+                /* ── Ollama detection ─────────────────────────── */
                 async function checkOllamaConnection() {
                     try {
-                        const response = await fetch('http://localhost:8081/api/tags');
-                        if (!response.ok) throw new Error('Ollama not reachable');
-
-                        const data = await response.json();
-                        if (data.models && data.models.length > 0) {
-                            currentModel = data.models[0].name;
+                        const r = await fetch('http://localhost:8081/api/tags');
+                        if (!r.ok) throw new Error();
+                        const d = await r.json();
+                        if (d.models && d.models.length > 0) {
+                            currentModel = d.models[0].name;
                             ollamaActive = true;
-                            updateModelIndicator(`✓ Connected: ${currentModel}`);
+                            updateModelIndicator('✓ Connected: ' + currentModel);
                             return true;
                         }
-                    } catch (err) {
-                        console.warn('[Ollama] Not available:', err.message);
-                    }
-
-                    ollamaActive = false;
-                    currentModel = null;
+                    } catch {}
+                    ollamaActive = false; currentModel = null;
                     updateModelIndicator('⚠️ Ollama not running – Limited mode');
                     return false;
                 }
 
                 function updateModelIndicator(text) {
+
                     document.getElementById('modelIndicator').textContent = text;
                 }
 
-                /* ---------- UI Controls ---------- */
-                // Functions are now attached via event listeners at the end
+                function toggleChatbot() {
+                    const win = document.getElementById('chatbotWindow');
+                    chatbotOpen = !chatbotOpen;
+                    if (chatbotOpen) {
+                        win.classList.add('active');
+                        document.getElementById('chatInput').focus();
+                        checkOllamaConnection();
+                    } else { win.classList.remove('active'); }
+                }
+                // ── Python attach button wiring ───────────────────────
+                // These get called by the 🖼️ and 📎 buttons inside the chat window
+                // They trigger the Python _chat_attach_* methods via a simple mechanism:
+                // Instead of complex QWebChannel, we just set a flag and poll it from Python
+                window._attachImageRequested = false;
+                window._attachFileRequested = false;
+                
+                window.pythonAttachImage = function() {
+                    console.log('[chatbot] 🖼️ Image attach requested');
+                    window._attachImageRequested = true;
+                    // Python will poll this flag via setInterval in _run_chat_js
+                };
+                window.pythonAttachFile = function() {
+                    console.log('[chatbot] 📎 File attach requested');
+                    window._attachFileRequested = true;
+                };
 
-                /* ---------- Messaging ---------- */
+                
+
+                function handleChatKeyPress(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+                }
+
+                /* ── Attachment (managed by Python via runJavaScript) ── */
+                // File/image picking is done in Python using QFileDialog.
+                // Python calls page().runJavaScript() to set window.attachedFile
+                // and show the preview banner. No JS file-input needed here.
+                function showAttachPreview(text) {
+
+
+                    const p = document.getElementById('attachPreview');
+                    if (!p) return;
+
+                    p.style.display = 'flex';
+                    p.innerHTML = '<span>' + text + '</span>' +
+                        '<button id="removeAttachBtn" ' +
+                        'style="margin-left:auto;background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>';
+
+                    document.getElementById('removeAttachBtn').onclick = function() {
+                        window.attachedFile = null;
+                        window._attachedFile = null;
+                        p.style.display = 'none';
+                    };
+                }   
+
+
+                /* ── Send message ─────────────────────────────── */
                 async function sendMessage() {
                     const input = document.getElementById('chatInput');
                     const message = input.value.trim();
-                    if (!message) return;
+                    // Read from window.attachedFile — set by Python via runJavaScript()
+                    const attach = window.attachedFile || null;
+                    if (!message && !attach) return;
 
-                    addMessage(message, 'user');
-                    conversationHistory.push({ role: 'user', content: message });
+                    let userDisplay = escapeHtml(message || '');
+                    if (attach) {
+                        if (attach.type === 'image' && attach.dataUrl) {
+                            userDisplay += '<br><img src="' + attach.dataUrl
+                                + '" style="max-width:180px;max-height:130px;border-radius:6px;margin-top:5px;">';
+                        } else {
+                            userDisplay += '<br><small>📎 ' + escapeHtml(attach.name) + '</small>';
+                        }
+                    }
+                    addRawMessage(userDisplay, 'user');
+                    conversationHistory.push({ role: 'user', content: message || '[attachment]' });
                     input.value = '';
-
                     document.getElementById('sendBtn').disabled = true;
                     showTypingIndicator();
 
                     try {
                         if (!ollamaActive) await checkOllamaConnection();
-                        const reply = await getAIResponse(message);
-                        addMessage(reply, 'bot');
+                        const { reply, sources } = await getAIResponse(message, attach);
+                        addBotMessage(reply, sources);
                         conversationHistory.push({ role: 'assistant', content: reply });
-                    } catch {
-                        addMessage('⚠️ Unable to generate a response.', 'bot');
+                    } catch(err) {
+                        addBotMessage('⚠️ Error: ' + err.message, []);
                     }
-
+                    // Clear attach
+                    window.attachedFile = null;
+                    window._attachedFile = null;
+                    const p = document.getElementById('attachPreview');
+                    if (p) { p.style.display = 'none'; p.innerHTML = ''; }
                     hideTypingIndicator();
                     document.getElementById('sendBtn').disabled = false;
                 }
 
-                /* ---------- AI Logic with Web Search ---------- */
-                async function getAIResponse(userMessage) {
-                    // Check if query needs web search
-                    const needsWebSearch = requiresWebSearch(userMessage);
-                    let context = '';
-                    
-                    if (needsWebSearch) {
-                        try {
-                            const searchResults = await performWebSearch(userMessage);
-                            if (searchResults) {
-                                context = "\\n\\nCurrent web search results:\\n" + searchResults + "\\n\\nBased on the above information, please answer: ";
-                            }
-                        } catch (err) {
-                            console.error('[Web search error]', err);
+                /* ── Web search ───────────────────────────────── */
+                function requiresWebSearch(msg) {
+                    if (!document.getElementById('webSearchToggle').checked) return false;
+                    const kw = ['news','current','latest','today','recent','2025','2026',
+                        'weather','stock','price','what happened','breaking','who is',
+                        'search for','look up','tell me about','find out'];
+                    return kw.some(k => msg.toLowerCase().includes(k));
+                }
+
+                async function performWebSearch(query) {
+                    const st = document.getElementById('searchStatus');
+                    st.textContent = '🔍 Searching…';
+                    try {
+                        // Route through localhost:8081/search (same origin as Ollama proxy)
+                        // This avoids CORS issues with setHtml() null origin
+                        const r = await fetch('http://localhost:8081/search?q='
+                            + encodeURIComponent(query), { method: 'GET' });
+                        if (!r.ok) throw new Error('search failed');
+                        const data = await r.json();
+                        st.textContent = data.sources && data.sources.length
+                            ? '✅ ' + data.sources.length + ' sources found'
+                            : data.text ? '✅ Result found' : '';
+                        return {
+                            text: data.text || null,
+                            sources: data.sources || []
+                        };
+                    } catch(e) {
+                        st.textContent = '⚠️ Search unavailable';
+                        console.warn('[search]', e);
+                        return { text: null, sources: [] };
+                    }
+                }
+
+                /* ── AI response ──────────────────────────────── */
+                async function getAIResponse(userMessage, attach) {
+                    let context = ''; let sources = [];
+
+                    if (attach) {
+                        if (attach.type === 'file' && attach.content) {
+                            context += '\n[Attached file: ' + attach.name + ']\n'
+                                + attach.content.slice(0, 4000) + '\n[End file]\nUser question: ';
+                        } else if (attach.type === 'image') {
+                            context += '\n[User attached image: ' + attach.name
+                                + '. Acknowledge it and help.]\n';
                         }
                     }
-                    
+
+                    if (userMessage && requiresWebSearch(userMessage)) {
+                        const res = await performWebSearch(userMessage);
+                        if (res.text) {
+                            context += '\n[Web search results]\n' + res.text + '\n[Answer based on above]\n';
+                            sources = res.sources;
+                        }
+                    }
+
+                    const prompt = context + (userMessage || '');
                     if (ollamaActive) {
                         try {
-                            const response = await fetch('http://localhost:8081/api/generate', {
+                            const r = await fetch('http://localhost:8081/api/generate', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     model: currentModel || 'mistral:latest',
-                                    prompt: context + userMessage,
-                                    stream: false,
-                                    system: 'You are DeepTalks.AI, a helpful AI assistant. When provided with web search results, use them to give accurate, current information. IMPORTANT: When writing code, ALWAYS format it properly with code blocks using triple backticks and language name like python or javascript. Put code in separate blocks from explanations. Keep code clean and well-formatted.'
+                                    prompt: prompt, stream: false,
+                                    system: 'You are DeepTalks.AI. Use web search results when provided. Analyse files carefully. Format code in triple-backtick blocks.'
                                 })
                             });
-
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.response) return data.response;
+                            if (r.ok) {
+                                const d = await r.json();
+                                if (d.response) return { reply: d.response, sources };
                             }
-                        } catch (err) {
-                            console.error('[Ollama error]', err);
-                        }
+                        } catch {}
                     }
-
-                    return generateFallbackResponse(userMessage);
-                }
-                
-                /* ---------- Web Search Detection ---------- */
-                function requiresWebSearch(message) {
-                    const msg = message.toLowerCase();
-                    
-                    // Explicit web search request
-                    if (msg.includes('search for') || msg.includes('look up') || msg.includes('find info')) {
-                        return true;
-                    }
-                    
-                    // Time-sensitive keywords
-                    const searchKeywords = [
-                        'news', 'current', 'latest', 'today', 'recent', 'now', 'this week', 'this month', 'this year',
-                        'weather', 'forecast', 'temperature',
-                        'stock', 'price', 'market', 'trading',
-                        'what happened', 'breaking', 'update',
-                        'score', 'game', 'match', 'tournament', 'championship',
-                        'election', 'vote', 'results',
-                        'trending', 'viral', 'popular',
-                        'when did', 'when was', 'who is currently', 'who won',
-                        'schedule', 'event', 'release date',
-                        '2024', '2025', '2026'  // Years indicate current events
-                    ];
-                    
-                    return searchKeywords.some(keyword => msg.includes(keyword));
-                }
-                
-                /* ---------- Web Search Function ---------- */
-                async function performWebSearch(query) {
-                    try {
-                        // Try Wikipedia API first for factual information
-                        const wikiQuery = encodeURIComponent(query);
-                        const wikiResponse = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + wikiQuery);
-                        
-                        if (wikiResponse.ok) {
-                            const wikiData = await wikiResponse.json();
-                            
-                            if (wikiData.extract && wikiData.extract.length > 50) {
-                                let results = "📚 Information from Wikipedia:\\n\\n";
-                                results += wikiData.extract + "\\n\\n";
-                                
-                                if (wikiData.content_urls && wikiData.content_urls.desktop) {
-                                    results += "Source: " + wikiData.content_urls.desktop.page + "\\n\\n";
-                                }
-                                
-                                results += "💡 For current news and updates, search directly:\\n";
-                                results += "• Brave: https://search.brave.com/search?q=" + wikiQuery + "\\n";
-                                results += "• Google: https://www.google.com/search?q=" + wikiQuery;
-                                
-                                return results;
-                            }
-                        }
-                    } catch (err) {
-                        console.log('[Wikipedia search failed, trying direct search]', err);
-                    }
-                    
-                    // If Wikipedia doesn't have it, provide direct search links
-                    const searchQuery = encodeURIComponent(query);
-                    let results = "🔍 To find current information about: " + query + "\\n\\n";
-                    results += "Click these search links for the latest results:\\n\\n";
-                    results += "🦁 Brave Search:\\n";
-                    results += "   https://search.brave.com/search?q=" + searchQuery + "\\n\\n";
-                    results += "🔍 Google Search:\\n";
-                    results += "   https://www.google.com/search?q=" + searchQuery + "\\n\\n";
-                    results += "🦆 DuckDuckGo:\\n";
-                    results += "   https://duckduckgo.com/?q=" + searchQuery + "\\n\\n";
-                    results += "💡 Tip: You can also type '" + query + "' in the search bar at the top of this browser!";
-                    
-                    return results;
+                    return { reply: fallback(userMessage || ''), sources };
                 }
 
-                /* ---------- Fallback (HONEST) ---------- */
-                function generateFallbackResponse(message) {
-                    const msg = message.toLowerCase();
-
-                    if (msg.includes('hello') || msg.includes('hi')) {
-                        return ollamaActive
-                            ? "Hello! 👋 How can I help you today?"
-                            : "Hello! 👋 I am running in limited mode right now.";
-                    }
-
-                    if (msg.includes('ollama')) {
-                        return "To enable full AI features:\\n\\n1. Install Ollama\\n2. Run: ollama pull mistral\\n3. Start Ollama\\n4. Refresh this page";
-                    }
-
-                    return "I am currently running in limited mode. Start Ollama locally to unlock full AI responses.";
+                function fallback(msg) {
+                    const m = msg.toLowerCase();
+                    if (m.includes('hello') || m.includes('hi'))
+                        return ollamaActive ? 'Hello! 👋 How can I help?' : 'Hello! 👋 Limited mode — start Ollama for full AI.';
+                    return 'Limited mode. Start Ollama for full AI responses.';
                 }
 
-                /* ---------- UI Helpers ---------- */
-                function addMessage(text, type) {
-                    const container = document.getElementById('chatMessages');
-                    const msgDiv = document.createElement('div');
-                    msgDiv.className = "message " + type;
-                    
-                    // Format the message content
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'message-content';
-                    
-                    // Store original text for copying
-                    const originalText = text;
-                    
-                    // Convert code blocks with copy buttons: ```language\\ncode\\n``` or ```\\ncode\\n```
-                    let formatted = text.replace(/```(\\w+)?\\n([\\s\\S]*?)```/g, function(match, lang, code) {
-                        const language = lang || 'plaintext';
-                        const cleanCode = escapeHtml(code.trim());
-                        const codeId = 'code-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                        return '<div class="code-block-container">' +
-                               '<button class="code-copy-btn" data-code-id="' + codeId + '">📋</button>' +
-                               '<pre><code id="' + codeId + '" class="language-' + language + '">' + cleanCode + '</code></pre>' +
-                               '</div>';
+                /* ── Message rendering ────────────────────────── */
+                function addRawMessage(html, type) {
+                    const c = document.getElementById('chatMessages');
+                    const d = document.createElement('div'); d.className = 'message ' + type;
+                    const cd = document.createElement('div'); cd.className = 'message-content';
+                    cd.innerHTML = html; d.appendChild(cd); c.appendChild(d);
+                    c.scrollTop = c.scrollHeight;
+                }
+
+                function addBotMessage(text, sources) {
+                    const c = document.getElementById('chatMessages');
+                    const d = document.createElement('div'); d.className = 'message bot';
+                    const cd = document.createElement('div'); cd.className = 'message-content';
+
+                    let f = text;
+                    // code blocks first (preserve them)
+                    const codeBlocks = [];
+                    f = f.replace(/```(\w+)?\n?([\s\S]*?)```/g, function(_, lang, code) {
+                        const idx = codeBlocks.length;
+                        codeBlocks.push('<pre><code class="language-' + (lang||'text') + '">'
+                            + code.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</code></pre>');
+                        return '%%CODE_' + idx + '%%';
                     });
-                    
-                    // Convert inline code: `code`
-                    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-                    
-                    // Convert newlines to <br> for non-code text
-                    formatted = formatted.replace(/\\n/g, '<br>');
-                    
-                    // Convert **bold**
-                    formatted = formatted.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
-                    
-                    // Convert bullet points
-                    formatted = formatted.replace(/^• /gm, '&nbsp;&nbsp;• ');
-                    
-                    contentDiv.innerHTML = formatted;
-                    
-                    // Add copy button for bot messages
-                    if (type === 'bot') {
-                        const copyBtn = document.createElement('button');
-                        copyBtn.className = 'copy-btn';
-                        copyBtn.innerHTML = '📋';
-                        copyBtn.title = 'Copy message';
-                        copyBtn.onclick = function(e) {
-                            e.stopPropagation();
-                            copyToClipboard(originalText, copyBtn);
-                        };
-                        contentDiv.appendChild(copyBtn);
-                        
-                        // Add click handlers to code copy buttons
-                        const codeCopyBtns = contentDiv.querySelectorAll('.code-copy-btn');
-                        codeCopyBtns.forEach(btn => {
-                            btn.onclick = function(e) {
-                                e.stopPropagation();
-                                const codeId = btn.getAttribute('data-code-id');
-                                copyCode(codeId, btn);
-                            };
-                        });
+                    f = f.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    f = f.replace(/`([^`]+)`/g, '<code>$1</code>');
+                    f = f.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                    f = f.replace(/\n/g, '<br>');
+                    codeBlocks.forEach((block, i) => { f = f.replace('%%CODE_' + i + '%%', block); });
+                    cd.innerHTML = f;
+                    d.appendChild(cd);
+
+                    if (sources && sources.length > 0) {
+                        const sd = document.createElement('div');
+                        sd.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(116,192,252,0.08);border-radius:6px;border-left:3px solid #74c0fc;font-size:12px;';
+                        sd.innerHTML =
+                        '<div style="color:#74c0fc;font-weight:bold;margin-bottom:4px;">🔗 Sources</div>' +
+                        sources.map(function(s) {
+                            return '• <a href="' + s.url +
+                                '" target="_blank" style="color:#74c0fc;text-decoration:none;">' +
+                                s.title.slice(0,60).replace(/</g,'&lt;') +
+                                '</a>';
+                        }).join('<br>');
+
+                        d.appendChild(sd);
                     }
-                    
-                    msgDiv.appendChild(contentDiv);
-                    container.appendChild(msgDiv);
-                    container.scrollTop = container.scrollHeight;
+                    c.appendChild(d); c.scrollTop = c.scrollHeight;
                 }
-                
-                /* ---------- Linux-Compatible Copy Functions ---------- */
-                function copyToClipboard(text, button) {
-                    // Remove markdown formatting for plain text copy
-                    let cleanText = text
-                        .replace(/```[\\w]*\\n/g, '')
-                        .replace(/```/g, '')
-                        .replace(/\\*\\*([^*]+)\\*\\*/g, '$1')
-                        .replace(/`([^`]+)`/g, '$1');
-                    
-                    // Create temporary textarea (works on Linux)
-                    const textarea = document.createElement('textarea');
-                    textarea.value = cleanText;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    
-                    try {
-                        const successful = document.execCommand('copy');
-                        if (successful) {
-                            button.innerHTML = '✓';
-                            button.classList.add('copied');
-                            setTimeout(() => {
-                                button.innerHTML = '📋';
-                                button.classList.remove('copied');
-                            }, 2000);
-                        } else {
-                            button.innerHTML = '✗';
-                            setTimeout(() => {
-                                button.innerHTML = '📋';
-                            }, 2000);
-                        }
-                    } catch (err) {
-                        console.error('Copy failed:', err);
-                        button.innerHTML = '✗';
-                        setTimeout(() => {
-                            button.innerHTML = '📋';
-                        }, 2000);
-                    }
-                    
-                    document.body.removeChild(textarea);
-                }
-                
-                function copyCode(codeId, button) {
-                    const codeElement = document.getElementById(codeId);
-                    if (!codeElement) return;
-                    
-                    const codeText = codeElement.textContent;
-                    
-                    // Create temporary textarea (works on Linux)
-                    const textarea = document.createElement('textarea');
-                    textarea.value = codeText;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    
-                    try {
-                        const successful = document.execCommand('copy');
-                        if (successful) {
-                            button.innerHTML = '✓';
-                            button.classList.add('copied');
-                            setTimeout(() => {
-                                button.innerHTML = '📋';
-                                button.classList.remove('copied');
-                            }, 2000);
-                        } else {
-                            button.innerHTML = '✗';
-                            setTimeout(() => {
-                                button.innerHTML = '📋';
-                            }, 2000);
-                        }
-                    } catch (err) {
-                        console.error('Copy failed:', err);
-                        button.innerHTML = '✗';
-                        setTimeout(() => {
-                            button.innerHTML = '📋';
-                        }, 2000);
-                    }
-                    
-                    document.body.removeChild(textarea);
-                }
-                
-                function escapeHtml(text) {
-                    const div = document.createElement('div');
-                    div.textContent = text;
-                    return div.innerHTML;
+
+                function escapeHtml(t) {
+                    const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
                 }
 
                 function showTypingIndicator() {
-                    const container = document.getElementById('chatMessages');
-                    const div = document.createElement('div');
-                    div.className = 'message bot';
-                    div.id = 'typingIndicator';
-                    div.innerHTML = '<div class="typing-indicator">' +
-                        '<div class="typing-dot"></div>' +
-                        '<div class="typing-dot"></div>' +
-                        '<div class="typing-dot"></div>' +
-                        '</div>';
-                    container.appendChild(div);
-                    container.scrollTop = container.scrollHeight;
+                    const c = document.getElementById('chatMessages');
+                    const d = document.createElement('div'); d.className = 'message bot'; d.id = 'typingIndicator';
+                    d.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+                    c.appendChild(d); c.scrollTop = c.scrollHeight;
                 }
 
                 function hideTypingIndicator() {
-                    const el = document.getElementById('typingIndicator');
-                    if (el) el.remove();
+                    const el = document.getElementById('typingIndicator'); if (el) el.remove();
                 }
-                
-                /* ---------- Event Listeners (DOM Ready) ---------- */
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Chatbot toggle button
-                    document.getElementById('chatbotToggle').addEventListener('click', function() {
-                        const chatWindow = document.getElementById('chatbotWindow');
-                        chatbotOpen = !chatbotOpen;
-                        if (chatbotOpen) {
-                            chatWindow.classList.add('active');
-                            document.getElementById('chatInput').focus();
-                            checkOllamaConnection();
-                        } else {
-                            chatWindow.classList.remove('active');
-                        }
-                    });
-                    
-                    // Chatbot close button
-                    document.getElementById('chatbotClose').addEventListener('click', function() {
-                        document.getElementById('chatbotWindow').classList.remove('active');
-                        chatbotOpen = false;
-                    });
-                    
-                    // Send button
-                    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-                    
-                    // Chat input Enter key
-                    document.getElementById('chatInput').addEventListener('keypress', function(event) {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            sendMessage();
-                        }
-                    });
-                    
-                    // Quick links
-                    document.querySelectorAll('.quick-link').forEach(link => {
-                        link.addEventListener('click', function() {
-                            const searchTerm = this.getAttribute('data-search');
-                            performSearch(searchTerm);
-                        });
-                    });
-                });
             </script>
         </body>
         </html>
@@ -1478,6 +1304,7 @@ class PrivacySettingsDialog(QDialog):
         self.settings = settings
         self.setWindowTitle("Privacy & Security Settings")
         self.setGeometry(200, 200, 700, 600)
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
         self.setup_ui()
     
     def setup_ui(self):
@@ -1584,7 +1411,7 @@ class PrivacySettingsDialog(QDialog):
         save_btn = QPushButton("💾 Save Settings")
         save_btn.clicked.connect(self.save_settings)
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
+        cancel_btn.clicked.connect(self.close)
         
         btn_layout.addWidget(save_btn)
         btn_layout.addWidget(cancel_btn)
@@ -1609,78 +1436,129 @@ class PrivacySettingsDialog(QDialog):
         self.parent_browser.apply_privacy_settings()
         
         QMessageBox.information(self, "Success", "Settings saved!\n\nYour 'My Browser' will now use " + self.backend_engine_combo.currentData() + " for searches.")
-        self.accept()
+        self.close()
     
     def view_logs(self):
         log_viewer = SearchLogViewer(self, self.parent_browser.privacy_logger)
-        log_viewer.exec()
+        log_viewer.show()
 
 
 class SearchLogViewer(QDialog):
-    """View search and privacy logs"""
-    
+    """View search and privacy logs — resizable, shows searches + page visits"""
+
     def __init__(self, parent, logger):
         super().__init__(parent)
         self.logger = logger
         self.setWindowTitle("Search & Privacy Logs")
-        self.setGeometry(200, 200, 800, 600)
+        self.setGeometry(150, 80, 1100, 750)
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
         self.setup_ui()
-    
+
     def setup_ui(self):
+        from PyQt6.QtWidgets import QTabWidget, QWidget
         layout = QVBoxLayout()
-        
-        info = QLabel("📊 Your Browsing & Search History (stored locally for privacy audit)")
-        layout.addWidget(info)
-        
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        
-        # Load ALL logs (searches and page visits)
+
+        tabs = QTabWidget()
+
+        # ── Tab 1: Searches ────────────────────────────────────────────────
+        t1 = QWidget(); t1l = QVBoxLayout()
+        t1l.addWidget(QLabel("🔍  Every search you performed — stored locally on your device"))
+
+        self.search_text = QTextEdit()
+        search_text = self.search_text
+        search_text.setReadOnly(True)
+        search_text.setFont(QFont("Courier New", 10))
+
+        lines = []
         try:
             if os.path.exists(self.logger.privacy_log_file):
                 with open(self.logger.privacy_log_file, 'r', encoding='utf-8') as f:
-                    all_logs = json.load(f)
-                    # Get last 200 entries
-                    recent_logs = all_logs[-200:] if len(all_logs) > 200 else all_logs
-            else:
-                recent_logs = []
-        except:
-            recent_logs = []
-        
-        log_content = ""
-        for log in reversed(recent_logs):
-            if log['type'] == 'search':
-                log_content += f"[{log['timestamp']}] 🔍 SEARCH on {log['engine']}: {log['query']}\n"
-            elif log['type'] == 'visit':
-                title = log.get('title', 'Untitled')
-                log_content += f"[{log['timestamp']}] 🌐 VISIT: {title}\n    URL: {log['url']}\n"
-        
-        if not log_content:
-            log_content = "No browsing history yet. Start browsing to see your history here!"
-        
-        self.log_text.setText(log_content)
-        layout.addWidget(self.log_text)
-        
+                    logs = json.load(f)
+                searches = [l for l in logs if l.get('type') == 'search']
+                for s in reversed(searches[-500:]):
+                    lines.append(f"[{s['timestamp']}]  {s.get('engine','?'):<20}  {s.get('query','')}")
+        except Exception:
+            pass
+        if not lines:
+            try:
+                if os.path.exists(self.logger.search_log_file):
+                    with open(self.logger.search_log_file, 'r', encoding='utf-8') as f:
+                        raw = f.readlines()
+                    lines = [l.rstrip() for l in reversed(raw[-500:])]
+            except Exception:
+                pass
+
+        if lines:
+            search_text.setText("\n".join(lines))
+        else:
+            search_text.setText(
+                "No searches logged yet.\n\n"
+                "Searches are recorded when you type in the URL bar or home page search.\n"
+                f"Log file: {self.logger.search_log_file}"
+            )
+        t1l.addWidget(search_text)
+        t1.setLayout(t1l)
+        tabs.addTab(t1, f"🔍 Searches ({len(lines)})")
+
+        # ── Tab 2: Page Visits ─────────────────────────────────────────────
+        t2 = QWidget(); t2l = QVBoxLayout()
+        t2l.addWidget(QLabel("🌐  Every page you visited — recorded locally"))
+
+        self.visit_text = QTextEdit()
+        visit_text = self.visit_text
+        visit_text.setReadOnly(True)
+        visit_text.setFont(QFont("Courier New", 10))
+
+        visit_lines = []
+        try:
+            if os.path.exists(self.logger.privacy_log_file):
+                with open(self.logger.privacy_log_file, 'r', encoding='utf-8') as f:
+                    logs = json.load(f)
+                visits = [l for l in logs if l.get('type') == 'visit']
+                for v in reversed(visits[-500:]):
+                    title = v.get('title', '')[:35]
+                    url   = v.get('url', '')
+                    visit_lines.append(f"[{v['timestamp']}]  {title:<35}  {url}")
+        except Exception:
+            pass
+
+        if visit_lines:
+            visit_text.setText("\n".join(visit_lines))
+        else:
+            visit_text.setText(
+                "No page visits logged yet.\n\n"
+                "Page visits are recorded when a page finishes loading.\n"
+                f"Log file: {self.logger.privacy_log_file}"
+            )
+        t2l.addWidget(visit_text)
+        t2.setLayout(t2l)
+        tabs.addTab(t2, f"🌐 Page Visits ({len(visit_lines)})")
+
+        layout.addWidget(tabs)
+
         btn_layout = QHBoxLayout()
-        export_btn = QPushButton("💾 Export Logs")
+        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn.clicked.connect(lambda: [self.close(), SearchLogViewer(self.parent(), self.logger).show()])
+        btn_layout.addWidget(refresh_btn)
+        export_btn = QPushButton("💾 Export")
         export_btn.clicked.connect(self.export_logs)
+        btn_layout.addWidget(export_btn)
         clear_btn = QPushButton("🗑️ Clear Logs")
         clear_btn.clicked.connect(self.clear_logs)
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(self.close)
-        
-        btn_layout.addWidget(export_btn)
         btn_layout.addWidget(clear_btn)
+        close_btn = QPushButton("✖ Close")
+        close_btn.clicked.connect(self.close)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
-        
         self.setLayout(layout)
     
     def export_logs(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Export Logs", "", "Text Files (*.txt)")
         if filename:
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(self.log_text.toPlainText())
+                f.write(self.search_text.toPlainText())
+                f.write("\n\n--- PAGE VISITS ---\n\n")
+                f.write(self.visit_text.toPlainText())
             QMessageBox.information(self, "Success", "Logs exported successfully!")
     
     def clear_logs(self):
@@ -1693,7 +1571,8 @@ class SearchLogViewer(QDialog):
                     os.remove(self.logger.search_log_file)
                 if os.path.exists(self.logger.privacy_log_file):
                     os.remove(self.logger.privacy_log_file)
-                self.log_text.clear()
+                self.search_text.clear()
+                self.visit_text.clear()
                 QMessageBox.information(self, "Success", "Logs cleared!")
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to clear logs: {e}")
@@ -1708,6 +1587,7 @@ class ExtensionsDialog(QDialog):
         self.ext_manager = extension_manager
         self.setWindowTitle("🧩 Browser Extensions")
         self.setGeometry(200, 200, 700, 500)
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
         self.setup_ui()
     
     def setup_ui(self):
@@ -1868,6 +1748,14 @@ class ModernBrowser(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Browser - Privacy Edition")
         self.setGeometry(100, 100, 1400, 900)
+        # Explicitly request all three window control buttons (close / minimize / maximize)
+        # Without this some Linux window managers omit the minimize button with Qt6.
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowCloseButtonHint |
+            Qt.WindowType.WindowMinimizeButtonHint |
+            Qt.WindowType.WindowMaximizeButtonHint
+        )
         
         # Setup directories
         self.data_dir = os.path.expanduser("~/.mybrowser")
@@ -1885,7 +1773,28 @@ class ModernBrowser(QMainWindow):
         
         # Privacy components
         self.privacy_logger = PrivacyLogger(self.data_dir)
+
+        # Optional microservices
+        self.network_interceptor = NetworkRequestInterceptor() if MODULES_AVAILABLE else None
+        self.security_monitor = SecurityMonitor() if MODULES_AVAILABLE else None
+
         self.extension_manager = ExtensionManager(os.path.join(self.data_dir, "extensions"))
+
+        # ── MICROSERVICES INIT ────────────────────────────────────
+        if MODULES_AVAILABLE:
+            self.network_interceptor = NetworkRequestInterceptor()
+            self.ip_masking          = IPMaskingMonitor()
+            self.social_tabs         = SocialTabManager(self)
+            self.security_monitor    = SecurityMonitor()
+            self.network_interceptor.request_logged.connect(self._on_request_logged)
+            self.ip_masking.ip_changed.connect(self._on_ip_changed)
+            self.security_monitor.alert_triggered.connect(self._on_security_alert)
+        else:
+            self.network_interceptor = None
+            self.ip_masking          = None
+            self.social_tabs         = None
+            self.security_monitor    = None
+        # ──────────────────────────────────────────────────────────
         
         # Create profile
         self.profile = QWebEngineProfile.defaultProfile()
@@ -1926,6 +1835,10 @@ class ModernBrowser(QMainWindow):
             self.engine_selector.setCurrentIndex(index)
         
         self.downloads = []
+        
+        # Start chatbot attach-button polling from the beginning so the
+        # 🖼️ / 📎 buttons inside the chatbot window work immediately on first click.
+        self._setup_attach_polling()
         
         # Show privacy indicator
         self.update_privacy_indicator()
@@ -1973,29 +1886,24 @@ class ModernBrowser(QMainWindow):
     
     def navigate_to_url(self):
         """Navigate with search logging"""
-        q = self.url_bar.text()
+        q = self.url_bar.text().strip()
+        if not q:
+            return
         browser = self.current_browser()
-        
         if browser:
-            if '.' in q and ' ' not in q and not q.startswith('http'):
-                url = 'http://' + q
-            elif q.startswith('http://') or q.startswith('https://'):
+            if q.startswith('http://') or q.startswith('https://'):
                 url = q
+            elif '.' in q and ' ' not in q:
+                url = 'http://' + q
             else:
-                # Log search
+                # Plain keyword — log immediately
                 self.log_search(q)
-                
-                # Use backend search engine if on My Browser, otherwise use browser's own search
                 if self.current_search_engine == 'My Browser':
-                    # Get backend search engine from settings
                     backend_engine = self.settings.get('backend_search_engine', 'Brave Search')
                     search_url = SEARCH_ENGINES[backend_engine]['search_url']
                 else:
-                    # Use the browser's own search URL (Google, Brave, DuckDuckGo)
                     search_url = BROWSERS[self.current_search_engine]['search_url']
-                
                 url = search_url.format(q.replace(' ', '+'))
-            
             browser.setUrl(QUrl(url))
     
     def create_modern_navigation_bar(self):
@@ -2053,6 +1961,46 @@ class ModernBrowser(QMainWindow):
         new_tab_btn = QAction("+", self)
         new_tab_btn.triggered.connect(lambda: self.add_new_tab_with_engine(self.current_search_engine))
         navbar.addAction(new_tab_btn)
+
+        # ── SOCIAL DROPDOWN ──────────────────────────────────────
+        if MODULES_AVAILABLE and self.social_tabs:
+            from PyQt6.QtWidgets import QToolButton, QMenu
+            social_btn = QToolButton()
+            social_btn.setText("🌍 Social")
+            social_btn.setToolTip("Open Social Media")
+            social_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            social_btn.setStyleSheet("""
+                QToolButton {
+                    background: rgba(255,255,255,0.15); color: white;
+                    border: 1px solid rgba(255,255,255,0.3);
+                    border-radius: 8px; padding: 6px 12px; font-size: 13px;
+                }
+                QToolButton:hover { background: rgba(255,255,255,0.28); }
+                QToolButton::menu-indicator { image: none; }
+            """)
+            social_menu = QMenu(social_btn)
+            social_menu.setStyleSheet("""
+                QMenu {
+                    background: rgba(20,20,50,0.97); color: white;
+                    border-radius: 10px; padding: 6px;
+                }
+                QMenu::item { padding: 10px 24px; border-radius: 6px; font-size: 13px; }
+                QMenu::item:selected { background: rgba(255,255,255,0.2); }
+            """)
+            for pid, pdata in self.social_tabs.get_all_platforms().items():
+                _pid = pid; _pdata = pdata
+                if pdata.get('name','').lower() == 'whatsapp' or pid.lower() == 'whatsapp':
+                    _pid = 'facebook'; _pdata = {'name': 'Facebook', 'url': 'https://www.facebook.com', 'icon': '📘'}
+                act = QAction(f"{_pdata['icon']}  {_pdata['name']}", self)
+                act.triggered.connect(lambda chk, p=_pid: self._open_social(p))
+                social_menu.addAction(act)
+            social_btn.setMenu(social_menu)
+            navbar.addSeparator()
+            navbar.addWidget(social_btn)
+        # ─────────────────────────────────────────────────────────
+        # NOTE: 🖼️ / 📎 attach buttons live inside the chatbot window only.
+        # Python polls window._attachImageRequested / _attachFileRequested flags
+        # (set by those in-chatbot buttons) and opens QFileDialog from there.
     
     def create_menu_bar(self):
         menubar = self.menuBar()
@@ -2080,19 +2028,51 @@ class ModernBrowser(QMainWindow):
         bookmarks_menu = menubar.addMenu("&Bookmarks")
         bookmarks_menu.addAction(QAction("Add Bookmark", self, shortcut="Ctrl+D", triggered=self.add_bookmark))
         bookmarks_menu.addAction(QAction("Show Bookmarks", self, triggered=self.show_bookmarks))
+
+        # ── SECURITY MENU ─────────────────────────────────────────
+        if MODULES_AVAILABLE and self.network_interceptor:
+            sec_menu = menubar.addMenu("🛡️ &Security")
+
+            act = QAction("🌐 Network Monitor", self)
+            act.setStatusTip("See every request your browser makes and blocked ads/trackers")
+            act.triggered.connect(self._show_network_monitor)
+            sec_menu.addAction(act)
+
+            act2 = QAction("🎭 IP Masking", self)
+            act2.setStatusTip("View & apply IP address masking algorithms")
+            act2.triggered.connect(self._show_ip_masking)
+            sec_menu.addAction(act2)
+
+            act3 = QAction("🛡️ Security Dashboard", self)
+            act3.setStatusTip("Security health score and threat alerts")
+            act3.triggered.connect(self._show_security_dashboard)
+            sec_menu.addAction(act3)
+
+            sec_menu.addSeparator()
+
+            act4 = QAction("📡 P2P Send File", self)
+            act4.setStatusTip("Send a file directly to another computer on your network")
+            act4.triggered.connect(self._show_p2p_send)
+            sec_menu.addAction(act4)
+
+            act5 = QAction("📥 P2P Receive File", self)
+            act5.setStatusTip("Receive a file sent from another computer")
+            act5.triggered.connect(self._show_p2p_receive)
+            sec_menu.addAction(act5)
+        # ──────────────────────────────────────────────────────────
     
     def show_privacy_settings(self):
         dialog = PrivacySettingsDialog(self, self.settings)
-        dialog.exec()
+        dialog.show()
         self.update_privacy_indicator()
     
     def show_search_logs(self):
         viewer = SearchLogViewer(self, self.privacy_logger)
-        viewer.exec()
+        viewer.show()
     
     def show_extensions(self):
         dialog = ExtensionsDialog(self, self.extension_manager)
-        dialog.exec()
+        dialog.show()
     
     def clear_browsing_data(self):
         reply = QMessageBox.question(self, "Clear Data",
@@ -2158,6 +2138,10 @@ class ModernBrowser(QMainWindow):
                 if not url_string.startswith('about:'):
                     self.url_bar.setText(url_string)
                     self.url_bar.setCursorPosition(0)
+            # ── Log to network interceptor (makes Network Monitor work) ──
+            url_str = qurl.toString()
+            if url_str and not url_str.startswith('about:') and self.network_interceptor:
+                self.network_interceptor.log_request(url_str, 'GET')
         
         def on_load_finished(success):
             if not success:
@@ -2165,7 +2149,25 @@ class ModernBrowser(QMainWindow):
                 
             title = tab.browser.page().title() if tab.browser else "New Tab"
             url = tab.browser.url().toString() if tab.browser else ""
-            
+
+            # Extract and log search query from search engine URLs
+            if url and not url.startswith('about:'):
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    parsed = urlparse(url)
+                    qs = parse_qs(parsed.query)
+                    # q= param used by Google, Brave, DDG, Bing, Ecosia, Startpage, Qwant, Searx, GitHub
+                    # p= used by Yahoo, text= by Yandex, search= by Wikipedia
+                    query = None
+                    for param in ('q', 'p', 'text', 'search', 'query', 'search_query'):
+                        if param in qs and qs[param][0].strip():
+                            query = qs[param][0].strip()
+                            break
+                    if query:
+                        self.log_search(query)
+                except Exception:
+                    pass
+
             # Log to privacy logger
             if url and not url.startswith('about:'):
                 self.privacy_logger.log_page_visit(url, title)
@@ -2232,13 +2234,10 @@ class ModernBrowser(QMainWindow):
     
     def save_history(self):
         try:
-            # Ensure the directory exists
-            os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
             with open(self.history_file, 'w') as f:
                 json.dump(self.history, f, indent=2)
-            print(f"History saved: {len(self.history)} entries")  # Debug output
-        except Exception as e:
-            print(f"Error saving history: {e}")
+        except:
+            pass
     
     def load_bookmarks(self):
         try:
@@ -2287,6 +2286,7 @@ class ModernBrowser(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("Bookmarks")
         dialog.setGeometry(200, 200, 600, 400)
+        dialog.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
         layout = QVBoxLayout()
         
         list_widget = QListWidget()
@@ -2304,7 +2304,7 @@ class ModernBrowser(QMainWindow):
         
         layout.addLayout(btn_layout)
         dialog.setLayout(layout)
-        dialog.exec()
+        dialog.show()
     
     def open_bookmark(self, list_widget, dialog):
         row = list_widget.currentRow()
@@ -2319,6 +2319,904 @@ class ModernBrowser(QMainWindow):
             download.setDownloadFileName(os.path.basename(path))
             download.accept()
 
+
+
+
+    # ════════════════════════════════════════════════════════════
+    #  MICROSERVICES METHODS
+    # ════════════════════════════════════════════════════════════
+
+    # ── Signal handlers ──────────────────────────────────────────
+    def _on_request_logged(self, url, method, blocked):
+        if blocked and self.security_monitor:
+            self.security_monitor.log_alert('MEDIUM', f'Blocked: {url[:60]}', 'network')
+
+    def _on_ip_changed(self, original, masked, algorithm):
+        self.statusBar().showMessage(f"🎭 IP: {original} → {masked} [{algorithm}]", 5000)
+
+    def _on_security_alert(self, level, message):
+        icons = {'LOW':'🟢','MEDIUM':'🟡','HIGH':'🔴','CRITICAL':'🚨'}
+        self.statusBar().showMessage(f"{icons.get(level,'⚠️')} {message}", 3000)
+
+    # ── Social tab opener ─────────────────────────────────────────
+    def _open_social(self, platform_id):
+        """Open social platform in new tab using existing CustomBrowserTab"""
+        if not self.social_tabs:
+            return
+        _all = self.social_tabs.get_all_platforms()
+        if platform_id == 'facebook':
+            platform = {'name': 'Facebook', 'url': 'https://www.facebook.com', 'icon': '📘'}
+        else:
+            platform = _all.get(platform_id)
+            if platform and platform.get('name','').lower() == 'whatsapp':
+                platform = {'name': 'Facebook', 'url': 'https://www.facebook.com', 'icon': '📘'}
+        if not platform:
+            return
+
+        from PyQt6.QtCore import QUrl
+
+        # Create a new tab using the first engine (My Browser)
+        engine_name = list(BROWSERS.keys())[0]
+        tab = CustomBrowserTab(self.profile, engine_name, self, self.extension_manager)
+        i = self.tabs.addTab(tab, f"{platform['icon']} {platform['name']}")
+        self.tabs.setCurrentIndex(i)
+        tab.browser.load(QUrl(platform['url']))
+
+        def on_title(title):
+            try:
+                idx = self.tabs.indexOf(tab)
+                if idx >= 0 and title:
+                    self.tabs.setTabText(idx, f"{platform['icon']} {title[:18]}")
+            except RuntimeError:
+                pass  # Tab or widget was deleted
+        tab.browser.titleChanged.connect(on_title)
+
+        def on_url(qurl):
+            if tab.browser == self.current_browser():
+                u = qurl.toString()
+                if not u.startswith('about:'):
+                    self.url_bar.setText(u)
+                    self.url_bar.setCursorPosition(0)
+        tab.browser.urlChanged.connect(on_url)
+
+    # ── Network Monitor ───────────────────────────────────────────
+    def _show_network_monitor(self):
+        """Network Monitor — live request log + blocked domain manager"""
+        if not self.network_interceptor:
+            return
+        from PyQt6.QtWidgets import (
+            QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget,
+            QTableWidgetItem, QHeaderView, QPushButton, QLineEdit,
+            QTabWidget, QWidget, QListWidget, QListWidgetItem, QMessageBox
+        )
+        from PyQt6.QtGui import QColor, QFont
+        from PyQt6.QtCore import Qt
+
+        dlg = QMainWindow()
+        dlg.setWindowTitle("🌐 Network Monitor")
+        dlg.setGeometry(100, 100, 1060, 720)
+        dlg.setStyleSheet("background:#0f0f23; color:white;")
+        main_lay = QVBoxLayout()
+
+        tabs = QTabWidget()
+        tabs.setStyleSheet("""
+            QTabWidget::pane { border:1px solid #333; border-radius:6px; }
+            QTabBar::tab { background:#1e1e3a; color:#aaa; padding:8px 18px;
+                           border-radius:6px 6px 0 0; margin-right:2px; }
+            QTabBar::tab:selected { background:#2a2a5a; color:white; font-weight:bold; }
+        """)
+
+        # ── TAB 1: Live Request Log ───────────────────────────────────────────
+        tab1 = QWidget(); t1l = QVBoxLayout()
+
+        hdr = QLabel(
+            "Every HTTP/HTTPS request your browser makes is listed here.\n"
+            "✅ ALLOWED = went through normally   "
+            "🚫 BLOCKED = matched a blocked domain and was stopped"
+        )
+        hdr.setWordWrap(True)
+        hdr.setStyleSheet(
+            "background:rgba(255,255,255,0.07);padding:10px;"
+            "border-radius:8px;font-size:12px;")
+        t1l.addWidget(hdr)
+
+        s = self.network_interceptor.get_stats()
+        stats_lbl = QLabel(
+            f"📊 Total: {s['total']}     ✅ Allowed: {s['allowed']}     🚫 Blocked: {s['blocked']}"
+        )
+        stats_lbl.setFont(QFont("Arial", 13, QFont.Weight.Bold))
+        stats_lbl.setStyleSheet(
+            "padding:10px;background:rgba(255,255,255,0.1);border-radius:8px;")
+        t1l.addWidget(stats_lbl)
+
+        reqs = self.network_interceptor.get_recent_requests(200)
+        tbl = QTableWidget(len(reqs), 4)
+        tbl.setHorizontalHeaderLabels(["Time", "Method", "URL", "Status"])
+        tbl.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        tbl.setColumnWidth(0, 80); tbl.setColumnWidth(1, 65); tbl.setColumnWidth(3, 120)
+        tbl.setStyleSheet(
+            "QTableWidget{background:#12122a;color:white;gridline-color:#2a2a4a;}"
+            "QHeaderView::section{background:#2a2a4a;color:white;padding:6px;}")
+        for i, r in enumerate(reversed(reqs)):
+            tbl.setItem(i, 0, QTableWidgetItem(r["timestamp"][11:19]))
+            tbl.setItem(i, 1, QTableWidgetItem(r.get("method","GET")))
+            tbl.setItem(i, 2, QTableWidgetItem(r["url"][:120]))
+            blk = r["blocked"]
+            si = QTableWidgetItem("🚫 BLOCKED" if blk else "✅ ALLOWED")
+            si.setForeground(QColor("#ff6b6b") if blk else QColor("#51cf66"))
+            tbl.setItem(i, 3, si)
+        t1l.addWidget(tbl)
+
+        b1 = QHBoxLayout()
+        clr = QPushButton("🗑️ Clear Log")
+        clr.setStyleSheet("background:#e74c3c;color:white;padding:8px 16px;border-radius:6px;")
+        clr.clicked.connect(lambda: [self.network_interceptor.clear_log(), dlg.close()])
+        b1.addWidget(clr)
+        cls1 = QPushButton("✖ Close")
+        cls1.setStyleSheet("background:#555;color:white;padding:8px 16px;border-radius:6px;")
+        cls1.clicked.connect(dlg.close)
+        b1.addWidget(cls1)
+        t1l.addLayout(b1)
+        tab1.setLayout(t1l)
+        tabs.addTab(tab1, "📋 Live Request Log")
+
+        # ── TAB 2: Blocked Domain Manager ────────────────────────────────────
+        tab2 = QWidget(); t2l = QVBoxLayout()
+
+        info = QLabel(
+            "Manage which domains are blocked.\n"
+            "🔒 Built-in = hardcoded in network_interceptor.py (always active)\n"
+            "👤 User-added = domains YOU added (saved to ~/.mybrowser/security/blocked_domains.json)\n"
+            "You can remove built-in domains for this session, or add your own below."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet(
+            "background:rgba(255,255,255,0.07);padding:10px;"
+            "border-radius:8px;font-size:12px;")
+        t2l.addWidget(info)
+
+        all_blocked = self.network_interceptor.get_all_blocked()
+        count_lbl = QLabel(f"Total blocked domains: {len(all_blocked)}")
+        count_lbl.setStyleSheet("font-weight:bold;padding:4px;")
+        t2l.addWidget(count_lbl)
+
+        domain_list = QListWidget()
+        domain_list.setStyleSheet(
+            "QListWidget{background:#12122a;color:white;border-radius:6px;}"
+            "QListWidget::item{padding:5px;border-bottom:1px solid #2a2a4a;}"
+            "QListWidget::item:selected{background:#2a2a5a;}")
+        for d in all_blocked:
+            tag = "🔒" if self.network_interceptor.is_default_domain(d) else "👤"
+            item = QListWidgetItem(f"{tag}  {d}")
+            item.setData(Qt.ItemDataRole.UserRole, d)
+            domain_list.addItem(item)
+        t2l.addWidget(domain_list)
+
+        # Add new domain
+        add_row = QHBoxLayout()
+        new_domain_input = QLineEdit()
+        new_domain_input.setPlaceholderText("Enter domain to block e.g. ads.example.com")
+        new_domain_input.setStyleSheet(
+            "background:#1e1e3a;color:white;padding:8px;border-radius:6px;font-size:13px;")
+        add_row.addWidget(new_domain_input)
+
+        add_btn = QPushButton("➕ Add Domain")
+        add_btn.setStyleSheet(
+            "background:#2ecc71;color:white;padding:8px 16px;border-radius:6px;font-weight:bold;")
+        def add_domain():
+            d = new_domain_input.text().strip().lower()
+            if not d:
+                return
+            self.network_interceptor.add_blocked_domain(d)
+            tag = "👤"
+            item = QListWidgetItem(f"{tag}  {d}")
+            item.setData(Qt.ItemDataRole.UserRole, d)
+            domain_list.addItem(item)
+            count_lbl.setText(f"Total blocked domains: {len(self.network_interceptor.get_all_blocked())}")
+            new_domain_input.clear()
+        add_btn.clicked.connect(add_domain)
+        new_domain_input.returnPressed.connect(add_domain)
+        add_row.addWidget(add_btn)
+        t2l.addLayout(add_row)
+
+        # Remove selected
+        b2 = QHBoxLayout()
+        rem_btn = QPushButton("🗑️ Remove Selected")
+        rem_btn.setStyleSheet("background:#e74c3c;color:white;padding:8px 16px;border-radius:6px;")
+        def remove_domain():
+            sel = domain_list.currentItem()
+            if not sel:
+                return
+            d = sel.data(Qt.ItemDataRole.UserRole)
+            reply = QMessageBox.question(
+                dlg, "Remove Domain",
+                f"Remove '{d}' from block list?\n"
+                + ("(Built-in — only removed for this session)" if self.network_interceptor.is_default_domain(d) else "(User-added — permanently removed)"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.network_interceptor.remove_blocked_domain(d)
+                domain_list.takeItem(domain_list.row(sel))
+                count_lbl.setText(f"Total blocked domains: {len(self.network_interceptor.get_all_blocked())}")
+        rem_btn.clicked.connect(remove_domain)
+        b2.addWidget(rem_btn)
+
+        cls2 = QPushButton("✖ Close")
+        cls2.setStyleSheet("background:#555;color:white;padding:8px 16px;border-radius:6px;")
+        cls2.clicked.connect(dlg.close)
+        b2.addWidget(cls2)
+        t2l.addLayout(b2)
+        tab2.setLayout(t2l)
+        tabs.addTab(tab2, f"🚫 Blocked Domains ({len(all_blocked)})")
+
+        main_lay.addWidget(tabs)
+        _central = QWidget(); _central.setLayout(main_lay)
+        dlg.setCentralWidget(_central)
+        dlg.show()
+    def _show_ip_masking(self):
+        """
+        IP MASKING — what you will see:
+        ┌─────────────────────────────────────────────────────────────┐
+        │  🔴 Real IP:    192.168.1.100   ← your device's LAN IP      │
+        │  🟢 Masked IP:  87.123.45.231   ← mathematically transformed│
+        │  ⚙️  Algorithm: simple_hash                                   │
+        │  📊 Status:     🟢 Active                                    │
+        ├─────────────────────────────────────────────────────────────┤
+        │  [simple_hash ▼]  [✅ Apply]  [🚫 Disable]                  │
+        └─────────────────────────────────────────────────────────────┘
+        ALGORITHMS:
+          simple_hash   → SHA256(ip) gives a completely different IP
+          xor_mask      → ip XOR 0x12345678 flips specific bits
+          random_subnet → keeps 192.168.x.x, randomises last number
+          rotate_octets → 192.168.1.100 becomes 100.192.168.1
+        ⚠️  This is a DISPLAY demonstration, not a real VPN.
+        """
+        if not self.ip_masking:
+            return
+        from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel,
+            QComboBox, QPushButton, QGroupBox, QFormLayout, QHBoxLayout)
+        from PyQt6.QtGui import QFont
+
+        dlg = QMainWindow()
+        dlg.setWindowTitle("🎭 IP Masking Monitor")
+        dlg.setGeometry(300, 180, 560, 540)
+        dlg.setStyleSheet("background:#0f0f23; color:white;")
+        lay = QVBoxLayout(); lay.setSpacing(10)
+
+        note = QLabel(
+            "🎭  IP Masking transforms your IP address mathematically.\n"
+            "Real IP = your device's actual network address.\n"
+            "Masked IP = a transformed version, calculated in the browser.\n"
+            "⚠️  This is a UI demonstration — it does NOT route traffic differently.\n"
+            "   For true anonymity use a VPN or Tor Browser."
+        )
+        note.setWordWrap(True)
+        note.setStyleSheet(
+            "background:rgba(255,165,0,0.1);padding:12px;border-radius:8px;"
+            "border:1px solid rgba(255,165,0,0.3);font-size:12px;")
+        lay.addWidget(note)
+
+        grp = QGroupBox("📡 Current Status")
+        grp.setStyleSheet(
+            "QGroupBox{font-weight:bold;color:white;"
+            "border:1px solid #444;border-radius:8px;margin-top:8px;padding-top:8px;}")
+        fl = QFormLayout()
+        st = self.ip_masking.get_status()
+
+        rl = QLabel(st['original_ip'])
+        rl.setStyleSheet(
+            "font-family:'Courier New';font-size:14px;color:#ff6b6b;"
+            "background:rgba(255,0,0,0.08);padding:4px 8px;border-radius:4px;")
+        fl.addRow("🔴 Real IP:", rl)
+
+        ml = QLabel(st['masked_ip'] or '(not enabled yet)')
+        ml.setStyleSheet(
+            "font-family:'Courier New';font-size:14px;color:#51cf66;"
+            "background:rgba(0,255,0,0.08);padding:4px 8px;border-radius:4px;")
+        fl.addRow("🟢 Masked IP:", ml)
+
+        al = QLabel(st['algorithm'])
+        al.setStyleSheet("color:#74c0fc;")
+        fl.addRow("⚙️  Algorithm:", al)
+        fl.addRow("📊 Status:", QLabel('🟢 Active' if st['enabled'] else '⚫ Disabled'))
+        grp.setLayout(fl); lay.addWidget(grp)
+
+        agrp = QGroupBox("🔧 Change Algorithm")
+        agrp.setStyleSheet(
+            "QGroupBox{font-weight:bold;color:white;"
+            "border:1px solid #444;border-radius:8px;margin-top:8px;padding-top:8px;}")
+        aly = QVBoxLayout()
+        cb = QComboBox()
+        cb.addItems(self.ip_masking.get_algorithms())
+        cb.setCurrentText(st['algorithm'])
+        cb.setStyleSheet("background:#2a2a4a;color:white;padding:6px;border-radius:6px;")
+
+        descs = {
+            'simple_hash':   'SHA256(your_ip) → completely different IP',
+            'xor_mask':      'your_ip XOR 0x12345678 → bit-flipped IP',
+            'random_subnet': 'Keep 192.168.x.x, randomise last octet',
+            'rotate_octets': '192.168.1.100 → 100.192.168.1'
+        }
+        exp = QLabel(descs.get(st['algorithm'], ''))
+        exp.setStyleSheet("color:#aaa;font-size:11px;padding:4px;")
+        cb.currentTextChanged.connect(lambda t: exp.setText(descs.get(t, '')))
+        aly.addWidget(cb); aly.addWidget(exp)
+
+        brow = QHBoxLayout()
+        ab = QPushButton("✅ Apply Masking")
+        ab.setStyleSheet(
+            "background:#2ecc71;color:white;padding:9px 16px;"
+            "border-radius:7px;font-weight:bold;")
+        ab.clicked.connect(lambda: [
+            self.ip_masking.apply_masking(cb.currentText()), dlg.close()])
+        brow.addWidget(ab)
+        db = QPushButton("🚫 Disable")
+        db.setStyleSheet("background:#e74c3c;color:white;padding:9px 16px;border-radius:7px;")
+        db.clicked.connect(lambda: [self.ip_masking.disable_masking(), dlg.close()])
+        brow.addWidget(db)
+        aly.addLayout(brow)
+        agrp.setLayout(aly); lay.addWidget(agrp)
+        _central = QWidget(); _central.setLayout(lay); dlg.setCentralWidget(_central); dlg.show()
+
+    # ── Security Dashboard ────────────────────────────────────────
+    def _show_security_dashboard(self):
+        """
+        SECURITY DASHBOARD — what you will see:
+        ┌─────────────────────────────────────────────────────────────┐
+        │  Security Score: 95%   Grade: A                             │
+        │  [███████████████░░░] 95%                                   │
+        │  ✅ Excellent — your browser is well protected               │
+        ├──────────────────┬──────────┬──────────────────────────────┤
+        │ Check             │ Result   │ Details                      │
+        │ Recent Threats    │ ✓ PASS   │ 0 high-severity alerts       │
+        │ Threat Level      │ ✓ PASS   │ Current level: LOW           │
+        ├─────────────────────────────────────────────────────────────┤
+        │ Total Alerts: 3  |  Threat Level: LOW                       │
+        └─────────────────────────────────────────────────────────────┘
+        GRADES:  A=Excellent  B=Good  C=Fair  D=Poor  F=Critical
+        THREAT LEVEL rises when the Network Monitor blocks many
+        high-priority trackers or detects repeated suspicious requests.
+        """
+        if not self.security_monitor:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Security Dashboard", "Security monitor not available.")
+            return
+        from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel,
+            QTableWidget, QTableWidgetItem, QProgressBar,
+            QPushButton, QHeaderView)
+        from PyQt6.QtGui import QFont, QColor
+
+        try:
+            self.security_dashboard_window = QMainWindow()
+            dlg = self.security_dashboard_window
+            dlg.setWindowTitle("🛡️ Security Dashboard")
+            dlg.setGeometry(120, 120, 820, 620)
+            dlg.setStyleSheet("background:#0f0f23; color:white;")
+            lay = QVBoxLayout(); lay.setSpacing(8)
+
+            hdr = QLabel(
+                "🛡️  Security Dashboard — your browser's health report.\n"
+                "Each check analyses recent browser activity and rates your safety.\n"
+                "Grade A = excellent · B = good · C = fair · D = poor · F = critical\n"
+                "Alerts are generated by the Network Monitor when trackers are blocked."
+            )
+            hdr.setWordWrap(True)
+            hdr.setStyleSheet(
+                "background:rgba(255,255,255,0.07);padding:10px;"
+                "border-radius:8px;font-size:12px;")
+            lay.addWidget(hdr)
+
+            res = self.security_monitor.run_security_check(self.network_interceptor)
+            gc = {'A':'#2ecc71','B':'#27ae60','C':'#f39c12','D':'#e67e22','F':'#e74c3c'}
+            col = gc.get(res['grade'], '#999')
+
+            sl = QLabel(f"Security Score: {res['score']:.0f}%   Grade: {res['grade']}")
+            sl.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+            sl.setStyleSheet(
+            f"color:{col};padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;")
+            lay.addWidget(sl)
+
+            pb = QProgressBar(); pb.setValue(int(res['score'])); pb.setFixedHeight(22)
+            pb.setStyleSheet(
+                f"QProgressBar{{background:rgba(255,255,255,0.1);border-radius:11px;"
+                f"color:white;text-align:center;}}"
+                f"QProgressBar::chunk{{background:{col};border-radius:11px;}}")
+            lay.addWidget(pb)
+
+            gd = {'A':'✅ Excellent — well protected',
+                'B':'🟡 Good — minor issues',
+                'C':'⚠️  Fair — some threats detected',
+                'D':'🔴 Poor — several threats, take action',
+                'F':'🚨 Critical — immediate attention needed'}
+            gl = QLabel(gd.get(res['grade'], ''))
+            gl.setStyleSheet(f"color:{col};font-size:13px;padding:4px;")
+            lay.addWidget(gl)
+
+            chks = res['checks']
+            tbl = QTableWidget(len(chks), 3)
+            tbl.setHorizontalHeaderLabels(["Security Check", "Result", "Details"])
+            tbl.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+            tbl.setColumnWidth(0, 200); tbl.setColumnWidth(1, 100)
+            tbl.setStyleSheet(
+                "QTableWidget{background:#12122a;color:white;gridline-color:#2a2a4a;}"
+                "QHeaderView::section{background:#2a2a4a;color:white;padding:6px;}")
+            for i, c in enumerate(chks):
+                tbl.setItem(i, 0, QTableWidgetItem(c['name']))
+                si = QTableWidgetItem('✓ PASS' if c['passed'] else '✗ FAIL')
+                si.setForeground(QColor('#51cf66') if c['passed'] else QColor('#ff6b6b'))
+                tbl.setItem(i, 1, si)
+                tbl.setItem(i, 2, QTableWidgetItem(c['message']))
+            lay.addWidget(tbl)
+
+            st = self.security_monitor.get_stats()
+            tc = {'LOW':'#2ecc71','MEDIUM':'#f39c12','HIGH':'#e74c3c','CRITICAL':'#c0392b'}
+            ftxt = (f"📋 Total Alerts: {st['total_alerts']}   |   "
+                    f"Threat Level: {st['current_threat_level']}")
+            fl = QLabel(ftxt)
+            fl.setStyleSheet(
+                f"padding:10px;background:rgba(255,255,255,0.05);"
+                f"border-radius:6px;color:{tc.get(st['current_threat_level'],'#fff')};")
+            lay.addWidget(fl)
+
+            # ── Recent security alerts ─────────────────────────────────
+            recent_alerts = self.security_monitor.get_recent_alerts(20)
+            from PyQt6.QtWidgets import QListWidget, QListWidgetItem
+            from PyQt6.QtGui import QColor as QColorAlert
+            al_lbl = QLabel(f"📋 Recent Alerts ({len(recent_alerts)}) — live as you browse")
+            al_lbl.setStyleSheet("font-weight:bold;padding:4px;margin-top:4px;")
+            lay.addWidget(al_lbl)
+            if recent_alerts:
+                al_list = QListWidget()
+                al_list.setMaximumHeight(120)
+                al_list.setStyleSheet(
+                    "QListWidget{background:#12122a;color:white;border-radius:6px;}"
+                    "QListWidget::item{padding:4px;border-bottom:1px solid #2a2a4a;font-size:11px;}")
+                lvl_col = {'LOW':'#51cf66','MEDIUM':'#ffd43b','HIGH':'#ff6b6b','CRITICAL':'#ff4444'}
+                for a in reversed(recent_alerts):
+                    ico = {'LOW':'🟢','MEDIUM':'🟡','HIGH':'🔴','CRITICAL':'🚨'}.get(a['level'],'⚠️')
+                    item = QListWidgetItem(f"{ico}  {a['timestamp'][11:19]}  [{a['category']}]  {a['message']}")
+                    item.setForeground(QColorAlert(lvl_col.get(a['level'],'#fff')))
+                    al_list.addItem(item)
+                lay.addWidget(al_list)
+            else:
+                no_al = QLabel("No alerts yet — browse websites to see real threat detection. Blocked ads/trackers appear here.")
+                no_al.setWordWrap(True)
+                no_al.setStyleSheet("color:#888;font-size:12px;padding:6px;")
+                lay.addWidget(no_al)
+
+            cb = QPushButton("✖ Close")
+            cb.setStyleSheet("background:#555;color:white;padding:8px 16px;border-radius:6px;")
+            cb.clicked.connect(dlg.close)
+            lay.addWidget(cb)
+            _central = QWidget()
+            _central.setLayout(lay)
+            dlg.setCentralWidget(_central)
+            dlg.show()
+        except Exception as e:
+            import traceback
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Security Dashboard Error", 
+                f"Failed to open Security Dashboard:\n{e}\n\n{traceback.format_exc()[-500:]}")
+
+    # ── P2P Send ──────────────────────────────────────────────────
+    def _show_p2p_send(self):
+        """
+        P2P SEND — how it works:
+        1. You pick a file on your computer
+        2. Your IP address + port 9876 is shown on screen
+        3. Tell the receiver your IP (e.g. 192.168.1.100) and port 9876
+        4. Receiver opens Security → P2P Receive, enters your IP + port
+        5. File transfers DIRECTLY — no cloud, no upload, no server
+        Requires both computers to be on the same WiFi/LAN network.
+        """
+        from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel,
+            QPushButton, QFileDialog, QProgressBar, QHBoxLayout)
+
+        dlg = QMainWindow()
+        dlg.setWindowTitle("📡 P2P Send File")
+        dlg.setGeometry(280, 180, 520, 460)
+        dlg.setStyleSheet("background:#0f0f23; color:white;")
+        lay = QVBoxLayout(); lay.setSpacing(8)
+
+        desc = QLabel(
+            "📡  P2P Send — transfer a file directly to another computer.\\n"
+            "HOW IT WORKS:\n"
+            "1️⃣  Choose the file you want to send below\n"
+            "2️⃣  Your IP address and port will be shown\n"
+            "3️⃣  Share those details with the receiver (verbally / message)\n"
+            "4️⃣  Ask them to open  Security → P2P Receive File  and enter your IP\n"
+            "5️⃣  File transfers instantly — no cloud service involved!\\n"
+            "⚠️  Both computers must be on the same WiFi or LAN network."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet(
+            "background:rgba(255,255,255,0.07);padding:12px;border-radius:8px;font-size:12px;")
+        lay.addWidget(desc)
+
+        file_lbl = QLabel("No file selected")
+        file_lbl.setStyleSheet(
+            "color:#74c0fc;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;")
+        lay.addWidget(file_lbl)
+
+        choose_btn = QPushButton("📁  Choose File to Send")
+        choose_btn.setStyleSheet(
+            "background:#3498db;color:white;padding:10px;border-radius:8px;"
+            "font-size:13px;font-weight:bold;")
+        selected = [None]
+
+        def pick():
+            import os
+            p, _ = QFileDialog.getOpenFileName(dlg, "Select File")
+            if p:
+                selected[0] = p
+                sz = os.path.getsize(p) / (1024*1024)
+                file_lbl.setText(f"📄  {os.path.basename(p)}  ({sz:.2f} MB)")
+        choose_btn.clicked.connect(pick)
+        lay.addWidget(choose_btn)
+
+        my_ip = self.ip_masking.get_real_ip() if self.ip_masking else "unknown"
+        PORT = 9876
+        conn_lbl = QLabel(
+            f"📡  Give these details to the receiver:\n"
+            f"    IP Address:  {my_ip}\n"
+            f"    Port:        {PORT}")
+        conn_lbl.setStyleSheet(
+            "font-family:'Courier New';font-size:13px;"
+            "background:rgba(0,255,0,0.07);padding:12px;border-radius:8px;")
+        lay.addWidget(conn_lbl)
+
+        pb = QProgressBar(); pb.setValue(0)
+        pb.setStyleSheet(
+            "QProgressBar{background:rgba(255,255,255,0.1);border-radius:8px;}"
+            "QProgressBar::chunk{background:#2ecc71;border-radius:8px;}")
+        lay.addWidget(pb)
+        status_lbl = QLabel("Ready — choose a file then click Send")
+        status_lbl.setStyleSheet("color:#aaa;font-size:12px;")
+        lay.addWidget(status_lbl)
+
+        send_btn = QPushButton("🚀  Start Sending  (waits for receiver to connect)")
+        send_btn.setStyleSheet(
+            "background:#2ecc71;color:white;padding:10px;border-radius:8px;"
+            "font-size:13px;font-weight:bold;")
+
+        def start():
+            import os
+            if not selected[0]:
+                status_lbl.setText("⚠️  Please choose a file first!"); return
+            fpath = selected[0]; fsize = os.path.getsize(fpath)
+            status_lbl.setText("⏳  Waiting for receiver to connect  (2-min timeout)…")
+            send_btn.setEnabled(False)
+
+            def worker():
+                try:
+                    import socket as s
+                    srv = s.socket(s.AF_INET, s.SOCK_STREAM)
+                    srv.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
+                    srv.bind(('0.0.0.0', PORT)); srv.listen(1); srv.settimeout(120)
+                    conn, addr = srv.accept()
+                    status_lbl.setText(f"✅  Connected to {addr[0]}!  Sending…")
+                    fname = os.path.basename(fpath).encode()
+                    conn.sendall(f"{len(fname)}:{fname.decode()}:{fsize}:".encode())
+                    sent = 0
+                    with open(fpath,'rb') as f:
+                        while True:
+                            chunk = f.read(65536)
+                            if not chunk: break
+                            conn.sendall(chunk); sent += len(chunk)
+                            pct = int(sent/fsize*100); pb.setValue(pct)
+                            status_lbl.setText(
+                                f"Sending… {sent//(1024*1024)} / "
+                                f"{fsize//(1024*1024)} MB  ({pct}%)")
+                    conn.close(); srv.close()
+                    status_lbl.setText("✅  File sent successfully!")
+                    pb.setValue(100)
+                except Exception as e:
+                    status_lbl.setText(f"❌  {e}"); send_btn.setEnabled(True)
+            import threading
+            threading.Thread(target=worker, daemon=True).start()
+
+        send_btn.clicked.connect(start); lay.addWidget(send_btn)
+        cls = QPushButton("✖ Close")
+        cls.setStyleSheet("background:#555;color:white;padding:8px;border-radius:6px;")
+        cls.clicked.connect(dlg.close); lay.addWidget(cls)
+        _central = QWidget(); _central.setLayout(lay); dlg.setCentralWidget(_central); dlg.show()
+
+    # ── P2P Receive ───────────────────────────────────────────────
+    def _show_p2p_receive(self):
+        """
+        P2P RECEIVE — how it works:
+        1. Sender opens Security → P2P Send File and picks a file
+        2. Sender tells you their IP address (e.g. 192.168.1.100) and port 9876
+        3. You type that IP and port here and click Receive
+        4. Choose a folder to save the file
+        5. File downloads directly from the sender's computer
+        """
+        from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel,
+            QPushButton, QFileDialog, QProgressBar, QLineEdit, QHBoxLayout)
+
+        dlg = QMainWindow()
+        dlg.setWindowTitle("📥 P2P Receive File")
+        dlg.setGeometry(280, 180, 520, 460)
+        dlg.setStyleSheet("background:#0f0f23; color:white;")
+        lay = QVBoxLayout(); lay.setSpacing(8)
+
+        desc = QLabel(
+            "📥  P2P Receive — download a file directly from another computer.\\n"
+            "HOW IT WORKS:\n"
+            "1️⃣  Ask the sender to open  Security → P2P Send File\n"
+            "2️⃣  The sender picks a file — their IP and port appear on screen\n"
+            "3️⃣  Enter their IP Address and Port below\n"
+            "4️⃣  Click Receive — choose a save folder — file downloads!\\n"
+            "⚠️  Both computers must be on the same WiFi or LAN network."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet(
+            "background:rgba(255,255,255,0.07);padding:12px;border-radius:8px;font-size:12px;")
+        lay.addWidget(desc)
+
+        inp_style = ("background:#1e1e3a;color:white;padding:9px;"
+                     "border-radius:7px;font-size:13px;")
+        r1 = QHBoxLayout()
+        r1.addWidget(QLabel("Sender IP:"))
+        ip_in = QLineEdit(); ip_in.setPlaceholderText("e.g. 192.168.1.100")
+        ip_in.setStyleSheet(inp_style); r1.addWidget(ip_in); lay.addLayout(r1)
+
+        r2 = QHBoxLayout()
+        r2.addWidget(QLabel("Port:     "))
+        pt_in = QLineEdit(); pt_in.setText("9876")
+        pt_in.setStyleSheet(inp_style); r2.addWidget(pt_in); lay.addLayout(r2)
+
+        pb = QProgressBar(); pb.setValue(0)
+        pb.setStyleSheet(
+            "QProgressBar{background:rgba(255,255,255,0.1);border-radius:8px;}"
+            "QProgressBar::chunk{background:#3498db;border-radius:8px;}")
+        lay.addWidget(pb)
+        status_lbl = QLabel("Enter sender IP and click Receive")
+        status_lbl.setStyleSheet("color:#aaa;font-size:12px;")
+        lay.addWidget(status_lbl)
+
+        recv_btn = QPushButton("📥  Receive File")
+        recv_btn.setStyleSheet(
+            "background:#3498db;color:white;padding:10px;border-radius:8px;"
+            "font-size:13px;font-weight:bold;")
+
+        def start():
+            sip = ip_in.text().strip()
+            try: sport = int(pt_in.text().strip())
+            except: status_lbl.setText("⚠️  Invalid port"); return
+            if not sip: status_lbl.setText("⚠️  Enter sender IP"); return
+            save_dir = QFileDialog.getExistingDirectory(dlg, "Choose Save Folder")
+            if not save_dir: return
+            recv_btn.setEnabled(False)
+            status_lbl.setText(f"🔗  Connecting to {sip}:{sport}…")
+
+            def worker():
+                import socket as s, os
+                fname = None
+                fsize = 0
+                try:
+                    sock = s.socket(s.AF_INET, s.SOCK_STREAM)
+                    sock.settimeout(30); sock.connect((sip, sport))
+                    buf = b""
+                    while True:
+                        b = sock.recv(1)
+                        if not b: break
+                        buf += b
+                        parts = buf.split(b":")
+                        if len(parts) >= 4:
+                            try:
+                                fname = parts[1].decode(); fsize = int(parts[2]); break
+                            except: pass
+                    if not fname or fsize == 0:
+                        QTimer.singleShot(0, lambda: status_lbl.setText("❌  Bad header from sender"))
+                        QTimer.singleShot(0, lambda: recv_btn.setEnabled(True))
+                        return
+                    _fn, _sz = fname, fsize
+                    QTimer.singleShot(0, lambda: status_lbl.setText(
+                        f"📥  Receiving {_fn}  ({_sz//(1024*1024)} MB)…"))
+                    save_path = os.path.join(save_dir, fname)
+                    rcvd = 0
+                    with open(save_path, 'wb') as f:
+                        while rcvd < fsize:
+                            data = sock.recv(65536)
+                            if not data: break
+                            f.write(data); rcvd += len(data)
+                            pct = int(rcvd / fsize * 100)
+                            _r, _t, _p = rcvd, fsize, pct
+                            QTimer.singleShot(0, lambda v=_p: pb.setValue(v))
+                            QTimer.singleShot(0, lambda r=_r, t=_t, p=_p: status_lbl.setText(
+                                f"Receiving… {r//(1024*1024)} / {t//(1024*1024)} MB  ({p}%)"))
+                    sock.close()
+                    _sp = save_path
+                    QTimer.singleShot(0, lambda: pb.setValue(100))
+                    QTimer.singleShot(0, lambda: status_lbl.setText(f"✅  Saved to: {_sp}"))
+                except Exception as e:
+                    _e = str(e)
+                    QTimer.singleShot(0, lambda: status_lbl.setText(f"❌  {_e}"))
+                    QTimer.singleShot(0, lambda: recv_btn.setEnabled(True))
+            import threading
+            threading.Thread(target=worker, daemon=True).start()
+
+        recv_btn.clicked.connect(start); lay.addWidget(recv_btn)
+        cls = QPushButton("✖ Close")
+        cls.setStyleSheet("background:#555;color:white;padding:8px;border-radius:6px;")
+        cls.clicked.connect(dlg.close); lay.addWidget(cls)
+        _central = QWidget(); _central.setLayout(lay); dlg.setCentralWidget(_central); dlg.show()
+
+
+    # ════════════════════════════════════════════════════════════
+    #  CHATBOT FILE / IMAGE ATTACHMENT  (Python-side, works properly)
+    #  These use native QFileDialog then inject via runJavaScript()
+    #  Called from the chat toolbar buttons added in create_modern_navigation_bar
+    # ════════════════════════════════════════════════════════════
+
+    def _chat_attach_image(self):
+        """🖼️ Image attach — native file picker → injects into chatbot via JS"""
+        import base64, mimetypes, json as _json
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Attach Image to Chat",
+            os.path.expanduser("~"),
+            "Images (*.png *.jpg *.jpeg *.gif *.webp *.bmp)"
+        )
+        if not path:
+            return
+        try:
+            fsize = os.path.getsize(path)
+            # Warn for images > 1 MB — Qt's runJavaScript is reliable up to ~1.5 MB of JS.
+            if fsize > 1 * 1024 * 1024:
+                reply = QMessageBox.question(
+                    self, "Large Image",
+                    f"This image is {fsize // 1024} KB.\n"
+                    "Images over 1 MB may be slow to inject. Continue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+
+            mime = mimetypes.guess_type(path)[0] or 'image/png'
+            with open(path, 'rb') as f:
+                b64 = base64.b64encode(f.read()).decode()
+            data_url = "data:" + mime + ";base64," + b64
+            fname    = os.path.basename(path)
+            size_kb  = round(fsize / 1024, 1)
+
+            # json.dumps produces a valid JS string literal for ANY filename
+            fname_js     = _json.dumps(fname)
+            dataurl_js   = _json.dumps(data_url)
+            preview_html = _json.dumps(
+                f'\U0001f5bc\ufe0f <strong style="color:#74c0fc">{fname}</strong>'
+                f' <span style="color:#aaa">({size_kb}\u00a0KB)</span>'
+            )
+            js = (
+                "(function(){"
+                f"window._attachedFile={{name:{fname_js},size:{fsize},"
+                f"type:'image',content:null,dataUrl:{dataurl_js}}};"
+                "window.attachedFile=window._attachedFile;"
+                "var p=document.getElementById('attachPreview');"
+                "if(p){"
+                f"p.style.display='flex';p.innerHTML={preview_html}"
+                "+'<button onclick=\"window._attachedFile=null;window.attachedFile=null;"
+                "this.parentElement.style.display=\\'none\\'\" "
+                "style=\"margin-left:auto;background:rgba(255,107,107,.2);border:1px solid "
+                "#ff6b6b;color:#ff6b6b;border-radius:4px;padding:2px 8px;cursor:pointer;"
+                "font-size:11px\">\u2715 Remove</button>';}"
+                "var inp=document.getElementById('chatInput');"
+                "if(inp){inp.placeholder='Ask about the image\u2026';inp.focus();}"
+                "})();"
+            )
+            self._run_chat_js(js)
+            self.statusBar().showMessage(f"✅ Image attached: {fname}", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not attach image:\n{e}")
+
+    def _chat_attach_file(self):
+        """📎 File attach — reads text files and injects into chatbot"""
+        import json as _json
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Attach File to Chat", os.path.expanduser("~"),
+            "Text files (*.txt *.py *.js *.ts *.md *.csv *.json *.html *.css "
+            "*.xml *.log *.sh *.yaml *.yml);;All files (*)"
+        )
+        if not path:
+            return
+        try:
+            MAX_READ = 16384  # 16 KB — good context for most LLMs
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                text_content = f.read(MAX_READ)
+            fname     = os.path.basename(path)
+            fsize     = os.path.getsize(path)
+            size_kb   = round(fsize / 1024, 1)
+            truncated = fsize > MAX_READ
+            note      = ' (first 16 KB)' if truncated else ''
+
+            fname_js     = _json.dumps(fname)
+            content_js   = _json.dumps(text_content)
+            preview_html = _json.dumps(
+                f'\U0001f4ce <strong style="color:#74c0fc">{fname}</strong>'
+                f' <span style="color:#aaa">({size_kb}\u00a0KB{note})</span>'
+            )
+            js = (
+                "(function(){"
+                f"window._attachedFile={{name:{fname_js},size:{fsize},"
+                f"type:'file',content:{content_js},dataUrl:null}};"
+                "window.attachedFile=window._attachedFile;"
+                "var p=document.getElementById('attachPreview');"
+                "if(p){"
+                f"p.style.display='flex';p.innerHTML={preview_html}"
+                "+'<button onclick=\"window._attachedFile=null;window.attachedFile=null;"
+                "this.parentElement.style.display=\\'none\\'\" "
+                "style=\"margin-left:auto;background:rgba(255,107,107,.2);border:1px solid "
+                "#ff6b6b;color:#ff6b6b;border-radius:4px;padding:2px 8px;cursor:pointer;"
+                "font-size:11px\">\u2715 Remove</button>';}"
+                "var inp=document.getElementById('chatInput');"
+                "if(inp){inp.placeholder='Ask about the file\u2026';inp.focus();}"
+                "})();"
+            )
+            self._run_chat_js(js)
+            self.statusBar().showMessage(f"✅ File attached: {fname}", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not read file:\n{e}")
+
+    def _run_chat_js(self, js):
+        """Run JS in the current tab's web page (for chatbot injection)"""
+        try:
+            widget = self.tabs.currentWidget()
+            if widget and hasattr(widget, 'browser'):
+                widget.browser.page().runJavaScript(js)
+        except Exception as e:
+            print(f"runJavaScript error: {e}")
+    
+    def _setup_attach_polling(self):
+        """Poll JS flags for attach button clicks"""
+        self._attach_poll_timer = QTimer()
+        self._attach_poll_timer.timeout.connect(self._check_attach_flags)
+        self._attach_poll_timer.start(200)  # check every 200ms
+    
+    def _check_attach_flags(self):
+        """Check if user clicked attach buttons in chatbot"""
+        try:
+            widget = self.tabs.currentWidget()
+            if not widget or not hasattr(widget, 'browser'):
+                return
+            # Check image flag
+            widget.browser.page().runJavaScript(
+                'window._attachImageRequested',
+                lambda result: self._handle_image_flag(result) if result else None
+            )
+            # Check file flag
+            widget.browser.page().runJavaScript(
+                'window._attachFileRequested',
+                lambda result: self._handle_file_flag(result) if result else None
+            )
+        except Exception:
+            pass
+    
+    def _handle_image_flag(self, requested):
+        if requested and not getattr(self, '_attach_busy', False):
+            self._reset_flag('_attachImageRequested')
+            self._attach_busy = True
+            try:
+                self._chat_attach_image()
+            finally:
+                self._attach_busy = False
+    
+    def _handle_file_flag(self, requested):
+        if requested and not getattr(self, '_attach_busy', False):
+            self._reset_flag('_attachFileRequested')
+            self._attach_busy = True
+            try:
+                self._chat_attach_file()
+            finally:
+                self._attach_busy = False
+    
+    def _reset_flag(self, flag_name):
+        """Reset JS flag after handling"""
+        try:
+            widget = self.tabs.currentWidget()
+            if widget and hasattr(widget, 'browser'):
+                widget.browser.page().runJavaScript(f'window.{flag_name} = false;')
+        except Exception:
+            pass
 
 def main():
     app = QApplication(sys.argv)

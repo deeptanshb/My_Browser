@@ -1,114 +1,131 @@
 """
-Simple CORS Proxy for Ollama - Robust Version
-Handles all CORS requirements properly
+CORS Proxy for My Browser
+==========================
+Runs on localhost:8081 and proxies:
+  - /api/*          → Ollama at localhost:11434  (AI chat)
+  - /search?q=...   → DuckDuckGo instant answers  (chatbot web search)
+
+Why needed:
+  The homepage is loaded via setHtml() which gives it a null origin.
+  Browsers block cross-origin fetch() from null origins.
+  All requests go through this proxy which is same-origin (localhost:8081).
 """
 
-from flask import Flask, request, Response, jsonify
-import requests
+from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
+import requests as req
 import json
 
 app = Flask(__name__)
+CORS(app, origins="*")
 
-OLLAMA_BASE = 'http://localhost:11434'
+OLLAMA_BASE = "http://localhost:11434"
 
-@app.after_request
-def after_request(response):
-    """Add CORS headers to every response"""
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Access-Control-Max-Age'] = '3600'
-    return response
+
+# ── Ollama proxy ──────────────────────────────────────────────────────────────
 
 @app.route('/api/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
-def proxy(path):
-    """Proxy requests to Ollama"""
-    
-    # Handle CORS preflight
+def proxy_ollama(path):
+    """Forward all /api/* to Ollama"""
     if request.method == 'OPTIONS':
-        return '', 200
-    
-    url = f'{OLLAMA_BASE}/api/{path}'
-    
+        resp = app.make_default_options_response()
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+
+    url = f"{OLLAMA_BASE}/api/{path}"
     try:
         if request.method == 'POST':
-            # Get request data
-            try:
-                data = request.get_json()
-            except:
-                data = request.data
-            
-            print(f"[PROXY] POST {path}")
-            print(f"[PROXY] Data: {json.dumps(data) if isinstance(data, dict) else str(data)[:100]}")
-            
-            # Forward to Ollama
-            resp = requests.post(
-                url,
-                json=data,
-                headers={'Content-Type': 'application/json'},
-                timeout=300
-            )
-            
-            print(f"[PROXY] Ollama response status: {resp.status_code}")
-            
-            return Response(
-                resp.content,
-                status=resp.status_code,
-                content_type=resp.headers.get('Content-Type', 'application/json')
-            )
-            
-        else:  # GET
-            print(f"[PROXY] GET {path}")
-            resp = requests.get(url, timeout=5)
-            
-            return Response(
-                resp.content,
-                status=resp.status_code,
-                content_type=resp.headers.get('Content-Type', 'application/json')
-            )
-            
-    except requests.exceptions.Timeout:
-        print(f"[PROXY ERROR] Timeout connecting to Ollama")
-        return jsonify({'error': 'Ollama timeout'}), 504
-        
-    except requests.exceptions.ConnectionError:
-        print(f"[PROXY ERROR] Cannot connect to Ollama")
-        return jsonify({'error': 'Ollama not running'}), 503
-        
+            r = req.post(url, json=request.get_json(), timeout=120)
+        else:
+            r = req.get(url, timeout=10)
+        resp = Response(r.content, status=r.status_code,
+                        content_type=r.headers.get('Content-Type', 'application/json'))
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp
+    except req.exceptions.ConnectionError:
+        return jsonify({'error': 'Ollama not running. Start with: ollama serve'}), 503
     except Exception as e:
-        print(f"[PROXY ERROR] {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 CORS Proxy for Ollama")
-    print("=" * 60)
-    print(f"📡 Ollama: {OLLAMA_BASE}")
-    print(f"🌐 Proxy:  http://localhost:8081")
-    print("=" * 60)
-    print()
-    
-    # Test Ollama connection
+
+# ── Web search endpoint ───────────────────────────────────────────────────────
+
+@app.route('/search', methods=['GET'])
+def web_search():
+    """
+    Search using DuckDuckGo Instant Answer API.
+    Returns JSON: { text: str|null, sources: [{title, url}] }
+
+    Called by the chatbot JS as: fetch('http://localhost:8081/search?q=...')
+    This works because it's the same origin (localhost:8081) for the chatbot.
+    """
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'text': None, 'sources': [], 'error': 'No query'}), 400
+
     try:
-        test = requests.get(f'{OLLAMA_BASE}/api/tags', timeout=2)
-        if test.status_code == 200:
-            data = test.json()
-            models = data.get('models', [])
-            print(f"✅ Ollama is running with {len(models)} model(s)")
-            for model in models:
-                print(f"   • {model.get('name', 'unknown')}")
-        else:
-            print(f"⚠️  Ollama returned status {test.status_code}")
+        r = req.get(
+            'https://api.duckduckgo.com/',
+            params={'q': query, 'format': 'json', 'no_html': '1', 'skip_disambig': '1'},
+            timeout=8,
+            headers={'User-Agent': 'MyBrowser/1.0'}
+        )
+        data = r.json()
+
+        text    = ''
+        sources = []
+
+        if data.get('Abstract'):
+            text += 'Summary: ' + data['Abstract'] + '\n'
+            if data.get('AbstractURL'):
+                sources.append({
+                    'title': data.get('AbstractSource', 'Source'),
+                    'url':   data['AbstractURL']
+                })
+
+        if data.get('Answer'):
+            text += 'Direct answer: ' + data['Answer'] + '\n'
+
+        if data.get('RelatedTopics'):
+            for i, topic in enumerate(data['RelatedTopics'][:4]):
+                if isinstance(topic, dict) and topic.get('Text'):
+                    text += f"{i+1}. {topic['Text']}\n"
+                    if topic.get('FirstURL'):
+                        sources.append({
+                            'title': topic['Text'][:60],
+                            'url':   topic['FirstURL']
+                        })
+
+        return jsonify({
+            'text':    text.strip() or None,
+            'sources': sources,
+            'query':   query
+        })
+
+    except req.exceptions.Timeout:
+        return jsonify({'text': None, 'sources': [], 'error': 'Search timed out'}), 504
     except Exception as e:
-        print(f"❌ Cannot connect to Ollama: {e}")
-        print("   Make sure Ollama is running: ollama serve")
-    
-    print()
-    print("Starting proxy server...")
-    print("Press Ctrl+C to stop")
-    print("=" * 60)
-    print()
-    
-    app.run(host='0.0.0.0', port=8081, debug=False)
+        return jsonify({'text': None, 'sources': [], 'error': str(e)}), 500
+
+
+# ── Health check ──────────────────────────────────────────────────────────────
+
+@app.route('/health', methods=['GET'])
+def health():
+    ollama_ok = False
+    try:
+        req.get(f'{OLLAMA_BASE}/api/tags', timeout=2)
+        ollama_ok = True
+    except Exception:
+        pass
+    return jsonify({'status': 'ok', 'ollama': ollama_ok})
+
+
+if __name__ == '__main__':
+    print("=" * 50)
+    print("🔌 CORS Proxy starting on http://localhost:8081")
+    print("   /api/*    → Ollama (AI chat)")
+    print("   /search   → DuckDuckGo (chatbot web search)")
+    print("=" * 50)
+    app.run(host='localhost', port=8081, debug=False, threaded=True)
