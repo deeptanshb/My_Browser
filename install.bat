@@ -1,227 +1,279 @@
 @echo off
-REM My Browser Installation Script for Windows
-REM This will set up the browser with AI features
+:: My Browser - Complete Installation Script (Windows)
+:: Features: AI Chatbot + Security Microservices
+:: Supports: Windows 10/11
 
-title My Browser Installation
-color 0B
-echo.
-echo ========================================
-echo    MY BROWSER INSTALLATION (AI-ENABLED)
-echo ========================================
+title My Browser - Installation
+
+echo ==================================================
+echo    MY BROWSER - COMPLETE INSTALLATION (WINDOWS)
+echo    AI + Security Microservices
+echo ==================================================
 echo.
 
-REM Create installation directory
+:: Colors via PowerShell
+set "GREEN=[92m"
+set "BLUE=[94m"
+set "YELLOW=[93m"
+set "RED=[91m"
+set "NC=[0m"
+
+:: Installation directory
 set "INSTALL_DIR=%USERPROFILE%\mybrowser"
-echo Creating installation directory...
+echo [94mInstallation directory: %INSTALL_DIR%[0m
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-
-REM Copy files
 echo.
-echo Copying browser files...
+
+:: ============================================
+:: FILE COPYING
+:: ============================================
+
+echo [94mCopying files...[0m
+
+:: Main browser file
 if exist "custom.py" (
     copy /Y "custom.py" "%INSTALL_DIR%\" >nul
-    echo [OK] Copied custom.py
+    echo [92m  custom.py[0m
 ) else (
-    echo [WARNING] custom.py not found
-)
-
-if exist "ollama_cors_proxy.py" (
-    copy /Y "ollama_cors_proxy.py" "%INSTALL_DIR%\" >nul
-    echo [OK] Copied ollama_cors_proxy.py
-)
-
-if exist "launch_mybrowser.py" (
-    copy /Y "launch_mybrowser.py" "%INSTALL_DIR%\" >nul
-    echo [OK] Copied launch_mybrowser.py
-) else (
-    echo [ERROR] launch_mybrowser.py not found!
+    echo [91m  custom.py not found! Aborting.[0m
     pause
     exit /b 1
 )
 
-REM Create run.bat launcher
+:: Launcher
+if exist "launch_mybrowser.py" (
+    copy /Y "launch_mybrowser.py" "%INSTALL_DIR%\" >nul
+    echo [92m  launch_mybrowser.py[0m
+) else (
+    echo [93m  launch_mybrowser.py not found[0m
+)
+
+:: CORS proxy for AI
+if exist "ollama_cors_proxy.py" (
+    copy /Y "ollama_cors_proxy.py" "%INSTALL_DIR%\" >nul
+    echo [92m  ollama_cors_proxy.py (for AI chatbot)[0m
+) else (
+    echo [93m  ollama_cors_proxy.py not found - AI features may be limited[0m
+)
+
+:: Microservices modules
+if exist "modules\" (
+    xcopy /E /I /Y "modules" "%INSTALL_DIR%\modules\" >nul
+    echo [92m  modules\ directory copied[0m
+
+    set "modules_count=0"
+    if exist "%INSTALL_DIR%\modules\__init__.py"           set /a modules_count+=1
+    if exist "%INSTALL_DIR%\modules\network_interceptor.py" set /a modules_count+=1
+    if exist "%INSTALL_DIR%\modules\ip_masking.py"         set /a modules_count+=1
+    if exist "%INSTALL_DIR%\modules\social_tabs.py"        set /a modules_count+=1
+    if exist "%INSTALL_DIR%\modules\security_monitor.py"   set /a modules_count+=1
+
+    echo [92m     Social Media Tabs[0m
+    echo [92m     IP Masking Monitor[0m
+    echo [92m     Network Interceptor[0m
+    echo [92m     Security Dashboard[0m
+) else (
+    echo [93m  modules\ not found - microservices disabled[0m
+)
+
 echo.
-echo Creating launcher script...
+
+:: ============================================
+:: CREATE run.bat LAUNCHER
+:: ============================================
+
+echo [94mCreating launcher script...[0m
+
 (
 echo @echo off
-echo title My Browser
-echo cd /d "%%~dp0"
+echo title My Browser - Complete Edition
+echo echo Starting My Browser - Complete Edition...
+echo echo.
+echo cd /d "%INSTALL_DIR%"
 echo.
-echo REM Check Python
-echo python --version ^>nul 2^>^&1
-echo if errorlevel 1 ^(
-echo     echo ERROR: Python is not installed!
-echo     echo.
-echo     echo Please install Python from: https://www.python.org/downloads/
-echo     echo Make sure to check "Add Python to PATH" during installation
-echo     echo.
-echo     pause
-echo     exit /b 1
-echo ^)
-echo.
-echo REM Check PyQt6
-echo python -c "import PyQt6" ^>nul 2^>^&1
-echo if errorlevel 1 ^(
+echo :: Check PyQt6
+echo python -c "import PyQt6" 2^>nul
+echo if %%errorlevel%% neq 0 ^(
+echo     echo PyQt6 is not installed!
 echo     echo Installing PyQt6...
 echo     pip install PyQt6 PyQt6-WebEngine
+echo     if %%errorlevel%% neq 0 ^(
+echo         echo Installation failed! Run manually: pip install PyQt6 PyQt6-WebEngine
+echo         pause
+echo         exit /b 1
+echo     ^)
+echo     echo PyQt6 installed!
 echo ^)
 echo.
-echo REM Check Flask ^(for AI features^)
-echo python -c "import flask, flask_cors, requests" ^>nul 2^>^&1
-echo if errorlevel 1 ^(
-echo     echo Installing Flask dependencies for AI...
+echo :: Check Flask
+echo python -c "import flask, flask_cors, requests" 2^>nul
+echo if %%errorlevel%% neq 0 ^(
+echo     echo Flask dependencies missing. Installing...
 echo     pip install flask flask-cors requests
 echo ^)
 echo.
-echo REM Run browser
-echo echo Starting My Browser...
+echo :: Run browser
 echo python launch_mybrowser.py
-echo.
-echo if errorlevel 1 ^(
+echo if %%errorlevel%% neq 0 ^(
 echo     echo.
-echo     echo Browser exited with an error
-echo     echo Check logs in: %%USERPROFILE%%\.mybrowser\logs\
-echo     echo.
+echo     echo Browser exited with an error.
 echo     pause
 echo ^)
 ) > "%INSTALL_DIR%\run.bat"
 
-echo [OK] Created run.bat
-
-REM Create desktop shortcut using VBScript
-echo.
-echo Creating desktop shortcut...
-set "DESKTOP=%USERPROFILE%\Desktop"
-set "SHORTCUT=%DESKTOP%\My Browser.lnk"
-
-(
-echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
-echo sLinkFile = "%SHORTCUT%"
-echo Set oLink = oWS.CreateShortcut^(sLinkFile^)
-echo oLink.TargetPath = "%INSTALL_DIR%\run.bat"
-echo oLink.WorkingDirectory = "%INSTALL_DIR%"
-echo oLink.Description = "My Browser - Privacy-focused browser with AI chatbot"
-echo oLink.IconLocation = "C:\Windows\System32\shell32.dll,14"
-echo oLink.Save
-) > "%TEMP%\create_shortcut.vbs"
-
-cscript //nologo "%TEMP%\create_shortcut.vbs" >nul 2>&1
-if exist "%SHORTCUT%" (
-    echo [OK] Desktop shortcut created
-) else (
-    echo [WARNING] Could not create desktop shortcut
-)
-del "%TEMP%\create_shortcut.vbs" >nul 2>&1
-
-REM Check dependencies
-echo.
-echo ========================================
-echo    CHECKING DEPENDENCIES
-echo ========================================
+echo [92m  run.bat created[0m
 echo.
 
-REM Check Python
-echo Checking Python...
+:: ============================================
+:: CREATE DESKTOP SHORTCUT
+:: ============================================
+
+echo [94mCreating desktop shortcut...[0m
+
+powershell -NoProfile -Command ^
+  "$ws = New-Object -ComObject WScript.Shell; ^
+   $s = $ws.CreateShortcut('%USERPROFILE%\Desktop\My Browser.lnk'); ^
+   $s.TargetPath = '%INSTALL_DIR%\run.bat'; ^
+   $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+   $s.IconLocation = 'shell32.dll,14'; ^
+   $s.Description = 'Privacy Browser with AI Chatbot and Security Tools'; ^
+   $s.Save()"
+
+echo [92m  Desktop shortcut created[0m
+echo.
+
+:: ============================================
+:: DEPENDENCY CHECKS
+:: ============================================
+
+echo [93mChecking dependencies...[0m
+echo.
+
+:: Check Python
 python --version >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python is not installed!
+if %errorlevel% neq 0 (
+    echo [91m  Python not found![0m
+    echo [93m  Download from: https://www.python.org/downloads/[0m
+    echo [93m  Make sure to check "Add Python to PATH" during install.[0m
     echo.
-    echo Please install Python from: https://www.python.org/downloads/
-    echo Make sure to check "Add Python to PATH" during installation
-    echo.
-    echo After installing Python, run this installer again.
-    pause
-    exit /b 1
 ) else (
-    for /f "tokens=*" %%i in ('python --version') do set PYTHON_VER=%%i
-    echo [OK] %PYTHON_VER%
+    for /f "tokens=*" %%v in ('python --version 2^>^&1') do echo [92m  %%v found[0m
 )
 
-REM Check PyQt6
-echo Checking PyQt6...
-python -c "import PyQt6" >nul 2>&1
-if errorlevel 1 (
-    echo [WARNING] PyQt6 not found. Installing...
+:: Check PyQt6
+python -c "import PyQt6" 2>nul
+if %errorlevel% neq 0 (
+    echo [93m  PyQt6 not found. Installing...[0m
     pip install PyQt6 PyQt6-WebEngine
-    if errorlevel 1 (
-        echo [ERROR] Failed to install PyQt6
-        echo.
-        echo Please run manually: pip install PyQt6 PyQt6-WebEngine
-        pause
+    if %errorlevel% equ 0 (
+        echo [92m  PyQt6 installed[0m
     ) else (
-        echo [OK] PyQt6 installed
+        echo [91m  PyQt6 installation failed[0m
+        echo [93m  Run manually: pip install PyQt6 PyQt6-WebEngine[0m
     )
 ) else (
-    echo [OK] PyQt6 is installed
+    echo [92m  PyQt6 installed[0m
 )
 
-REM Check Flask
-echo Checking Flask dependencies...
-python -c "import flask, flask_cors, requests" >nul 2>&1
-if errorlevel 1 (
-    echo [WARNING] Flask dependencies not found. Installing...
+:: Check Flask
+python -c "import flask, flask_cors, requests" 2>nul
+if %errorlevel% neq 0 (
+    echo [93m  Flask dependencies missing. Installing...[0m
     pip install flask flask-cors requests
-    if errorlevel 1 (
-        echo [WARNING] Could not install Flask - AI features may not work
-        echo.
-        echo Try manually: pip install flask flask-cors requests
+    if %errorlevel% equ 0 (
+        echo [92m  Flask dependencies installed[0m
     ) else (
-        echo [OK] Flask dependencies installed
+        echo [93m  Could not install Flask - AI may not work[0m
     )
 ) else (
-    echo [OK] Flask dependencies found
+    echo [92m  Flask dependencies installed[0m
 )
 
-REM Check Ollama
 echo.
-echo Checking for Ollama...
+
+:: ============================================
+:: OLLAMA CHECK
+:: ============================================
+
+echo [94mChecking for Ollama...[0m
 where ollama >nul 2>&1
-if errorlevel 1 (
-    echo [INFO] Ollama not found
-    echo.
-    echo To enable AI chatbot features:
-    echo   1. Install Ollama from: https://ollama.ai
-    echo   2. Pull a model: ollama pull mistral
-    echo   3. Start Ollama: ollama serve
-    echo.
-    echo Browser will work without Ollama, but AI features will be limited.
-) else (
-    echo [OK] Ollama is installed
-    
-    REM Check if Ollama is running
+if %errorlevel% equ 0 (
+    echo [92m  Ollama is installed[0m
     curl -s http://localhost:11434/api/tags >nul 2>&1
-    if errorlevel 1 (
-        echo [INFO] Ollama is installed but not running
-        echo       Start with: ollama serve
+    if %errorlevel% equ 0 (
+        echo [92m  Ollama is running[0m
     ) else (
-        echo [OK] Ollama is running
-        REM Try to list models
-        echo       Available models:
-        curl -s http://localhost:11434/api/tags 2>nul | python -c "import sys, json; [print('       - ' + m['name']) for m in json.load(sys.stdin).get('models', [])]" 2>nul
+        echo [93m  Ollama installed but not running[0m
+        echo [94m  Start with: ollama serve[0m
     )
+) else (
+    echo [93m  Ollama not found[0m
+    echo [94m  To enable AI chatbot:[0m
+    echo [94m    1. Download: https://ollama.ai[0m
+    echo [94m    2. Pull model: ollama pull mistral[0m
+    echo [94m    3. Start: ollama serve[0m
+    echo.
+    echo [93m  (Browser works without Ollama, but AI chatbot will be limited)[0m
 )
 
-REM Create logs directory
+echo.
+
+:: Create logs directory
 if not exist "%USERPROFILE%\.mybrowser\logs" mkdir "%USERPROFILE%\.mybrowser\logs"
 
+:: ============================================
+:: INSTALLATION COMPLETE
+:: ============================================
+
+echo [92m==================================================[0m
+echo [92m   INSTALLATION COMPLETE![0m
+echo [92m==================================================[0m
 echo.
-echo ========================================
-echo    INSTALLATION COMPLETE!
-echo ========================================
+echo [94mMy Browser - Complete Edition installed![0m
 echo.
-echo Installation location: %INSTALL_DIR%
-echo Logs directory: %USERPROFILE%\.mybrowser\logs
+echo   Installation : %INSTALL_DIR%
+echo   Logs         : %USERPROFILE%\.mybrowser\logs
 echo.
-echo HOW TO RUN:
+
+echo [93mInstalled files:[0m
+dir /B "%INSTALL_DIR%" 2>nul | findstr /v "^$"
 echo.
-echo   Option 1: Double-click "My Browser" icon on desktop
-echo   Option 2: Run: %INSTALL_DIR%\run.bat
-echo   Option 3: Command: python %INSTALL_DIR%\launch_mybrowser.py
+
+if exist "%INSTALL_DIR%\modules\" (
+    echo [92mMicroservices Status:[0m
+    if exist "%INSTALL_DIR%\modules\network_interceptor.py" echo    Network Request Interceptor
+    if exist "%INSTALL_DIR%\modules\ip_masking.py"          echo    IP Masking Monitor
+    if exist "%INSTALL_DIR%\modules\social_tabs.py"         echo    Social Media Quick Tabs
+    if exist "%INSTALL_DIR%\modules\security_monitor.py"    echo    Security Dashboard
+    echo.
+)
+
+echo [93mHOW TO RUN:[0m
 echo.
-echo AI FEATURES:
-echo   - AI chatbot powered by Ollama
-echo   - Code formatting and web search
-echo   - Install Ollama for full AI capabilities
+echo   Option 1: Double-click "My Browser" on Desktop
+echo   Option 2: Run %INSTALL_DIR%\run.bat
+echo   Option 3: python %INSTALL_DIR%\launch_mybrowser.py
 echo.
-echo Press any key to exit...
-pause >nul
+
+echo [94mFEATURES:[0m
+echo    All search engines
+echo    Privacy logging ^& bookmarks
+echo    Extensions ^& downloads
+if exist "%INSTALL_DIR%\ollama_cors_proxy.py" echo    AI Chatbot (if Ollama running)
+if exist "%INSTALL_DIR%\modules\" (
+    echo    Social Media Quick Tabs
+    echo    IP Masking Monitor
+    echo    Network Request Interceptor
+    echo    Security Dashboard
+)
+
+echo.
+echo Enjoy your complete browser with AI ^& security tools!
+echo.
+
+set /p launch="Launch browser now? (y/n): "
+if /i "%launch%"=="y" (
+    echo.
+    cd /d "%INSTALL_DIR%"
+    call run.bat
+)
