@@ -1,0 +1,7 @@
+[app] (name=mybrowser)
+  [Maximized] {yes}
+  [Layer] {2}
+[end]
+[transient]
+  [Layer] {2}
+[end]

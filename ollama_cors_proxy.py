@@ -19,7 +19,7 @@ import json
 app = Flask(__name__)
 CORS(app, origins="*")
 
-OLLAMA_BASE = "http://localhost:11434"
+OLLAMA_BASE = "http://host.docker.internal:11434"
 
 
 # ── Ollama proxy ──────────────────────────────────────────────────────────────
@@ -107,6 +107,28 @@ def web_search():
         return jsonify({'text': None, 'sources': [], 'error': 'Search timed out'}), 504
     except Exception as e:
         return jsonify({'text': None, 'sources': [], 'error': str(e)}), 500
+
+
+# ── Autocomplete endpoint ────────────────────────────────────────────────────
+
+@app.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    """DuckDuckGo autocomplete suggestions"""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    try:
+        r = req.get(
+            'https://duckduckgo.com/ac/',
+            params={'q': query, 'type': 'list'},
+            timeout=3,
+            headers={'User-Agent': 'DeepBrowse/1.0'}
+        )
+        data = r.json()
+        suggestions = data[1] if len(data) > 1 else []
+        return jsonify(suggestions[:8])
+    except Exception as e:
+        return jsonify([])
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

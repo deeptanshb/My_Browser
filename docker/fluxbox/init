@@ -1,0 +1,4 @@
+session.screen0.toolbar.visible: false
+session.screen0.slit.visible: false
+session.menuFile: ~/.fluxbox/menu
+session.keyFile: ~/.fluxbox/keys

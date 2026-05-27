@@ -1,0 +1,128 @@
+\documentclass[12pt]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{parskip}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.9em}
+
+\begin{document}
+
+\textbf{Deeptanshu Bhattacharya}\\
+School of Electronics Engineering\\
+Vellore Institute of Technology, Chennai 600127, India\\
+\href{mailto:deeptanshu.b2022@vitstudent.ac.in}{deeptanshu.b2022@vitstudent.ac.in}
+
+\bigskip
+\today
+
+\bigskip
+The Editors\\
+\textit{Nature Machine Intelligence}
+
+\bigskip
+\textbf{Re: Submission of ``Temporal Attention Collapse in EEG-to-Text Decoding:
+Repair with Hierarchical Temporal Pooling and Anatomical Encoding via
+Multi-Region GRU--Transformers''}
+
+\bigskip
+Dear Editors,
+
+We write to submit the above manuscript for consideration as a Research Article
+in \textit{Nature Machine Intelligence}.
+
+\textbf{The problem and why it matters.}
+Open-vocabulary decoding of natural language from scalp EEG during silent
+reading is a foundational challenge in brain--computer interface research,
+with direct implications for patients with amyotrophic lateral sclerosis and
+locked-in syndrome who cannot speak or type.
+Despite significant recent progress, every existing open-vocabulary system
+on the ZuCo benchmark — the largest open EEG-to-text corpus — encodes all
+scalp electrodes as a single mean-pooled vector and applies single-level
+softmax attention over long sequences, discarding both the anatomical
+structure of the cortical reading network and all meaningful temporal dynamics.
+
+\textbf{The core finding.}
+We identify and formally characterise a structural failure that has gone
+unrecognised across all prior ZuCo systems: temporal attention inside the EEG
+encoder collapses to a near-uniform $1/T$ distribution during training,
+rendering it mechanically identical to mean pooling regardless of the recurrent
+computation performed.
+This collapse follows predictably from the softmax denominator scaling with
+sequence length — a property of the architecture, not the data.
+We confirm it empirically: Baseline-2's mean attention entropy across
+$n{=}160$ validation samples reaches $5.53 \pm 0.01$\,nats, within 0.4\%
+of the theoretical maximum $\log(256){=}5.545$\,nats.
+The repair — \textbf{Hierarchical Temporal Pooling (HTP)}, the paper's
+central contribution — recovers 10--30$\times$ attention-norm magnitude and
+produces a 37\% improvement in EEG--token alignment (TF/FG ratio: $6.19\times
+\to 4.49\times$), with the corpus BLEU gain standing at $12\times$ the
+MC-dropout noise floor.
+
+\textbf{The contributions and why they are novel.}
+Alongside HTP, we introduce the first anatomically decomposed Multi-Region
+GRU--Transformer encoder on ZuCo — partitioning 24 scalp electrodes into
+six cortically motivated regions (Wernicke's area, VWFA, angular gyrus,
+bilateral parietal) with dedicated GRU--Transformer stacks per region.
+The resulting attention profiles recover the known hierarchy of cortical
+reading circuits: VWFA dominates under timed presentation; left parietal
+under self-paced reading — consistent with established reading neuroscience
+and providing interpretable evidence beyond BLEU scores.
+We further release three falsifiable predictions for cross-paradigm
+verification (motor-imagery, P300 spelling, SSVEP) and a diagnostic
+tool (\\texttt{diagnose\\_collapse.py}) enabling other researchers to test
+whether the same collapse is present in their own models without retraining.
+No prior ZuCo sentence-generation system employs regional decomposition,
+hierarchical pooling, MoCo contrastive pretraining, or LoRA-based decoder
+adaptation.
+We also contribute the first EEG-to-text system on ZuCo that fuses
+simultaneous eye-tracking as a parallel input modality.
+An exploratory 4-qubit variational residual projector (QFP, 8,476 parameters)
+provides marginal regularisation as a secondary component
+($\Delta_\text{val}{=}{-}0.0011$; generation improvement non-significant,
+$p{=}0.668$).
+
+\textbf{Why \textit{Nature Machine Intelligence}.}
+This work sits at the intersection of machine learning methods, neuroscience,
+and clinical brain--computer interfaces — precisely the interdisciplinary space
+\textit{Nature Machine Intelligence} is designed for.
+The central contribution is a mechanistic diagnosis of a structural failure
+present across an entire class of prior systems — one that is architecture-driven
+and therefore likely to generalise beyond ZuCo to motor-imagery, P300, and
+SSVEP paradigms.
+The repair is supported by interpretable neuroscientific evidence,
+formally characterised predictions for independent verification, and a
+complete reproducible pipeline on consumer-grade hardware.
+We believe it will be of interest to readers across the ML, BCI, and
+cognitive neuroscience communities.
+
+\textbf{Competing interests and ethical compliance.}
+The authors declare no competing interests.
+No new human participants were recruited; all experiments use the
+publicly available ZuCo corpus (OSF, CC BY 4.0).
+The study was conducted as undergraduate research at VIT Chennai under
+faculty supervision; no external funding was received.
+
+\textbf{Data and code availability.}
+All model code, trained checkpoints, the guardrailed NIM evaluation pipeline,
+and a reusable external-researcher comparison framework are publicly released
+at \url{https://github.com/deeptanshb/multimodal-EEG-EYE-Tracking-based-Sentence-Generation-with-Nvidia-guardrailed-benchmarked-inference}.
+The ZuCo corpus is available at \url{https://osf.io/q3zws} under CC BY 4.0.
+
+We confirm that this manuscript has not been submitted elsewhere and all
+authors have approved the submission.
+
+\bigskip
+Yours sincerely,
+
+\bigskip
+\bigskip
+Deeptanshu Bhattacharya\\
+(Corresponding author)
+
+\bigskip
+\textit{On behalf of:}\\
+Shridevi S. (Supervisor)\\
+School of Electronics Engineering, VIT Chennai
+
+\end{document}

@@ -1,0 +1,25 @@
+DeepBrowse Chat Export
+Date: 5/25/2026, 12:29:49 PM
+==================================================
+
+You: code to print 2 numbers difference in c++
+
+AI:  In C++, you can calculate the difference of two numbers using the following code:
+
+```cpp
+#include <iostream>
+
+int main() {
+    int number1, number2;
+    std::cout << "Enter first number: ";
+    std::cin >> number1;
+    std::cout << "Enter second number: ";
+    std::cin >> number2;
+    int difference = abs(number1 - number2);
+    std::cout << "The absolute difference between the two numbers is: " << difference;
+    return 0;
+}
+```
+
+This code first asks for user input to get two numbers. Then it calculates the absolute value of the difference using the `abs()` function and prints out the result.
+

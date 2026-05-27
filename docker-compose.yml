@@ -1,0 +1,44 @@
+services:
+
+  mybrowser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mybrowser
+    ports:
+      - "6080:6080"
+      - "5900:5900"
+      - "8081:8081"
+    environment:
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=720
+      - SCREEN_DEPTH=24
+      - NOVNC_PORT=6080
+      - VNC_PORT=5900
+      - CORS_PROXY_PORT=8081
+      - OLLAMA_HOST=host.docker.internal
+      - QT_STYLE_OVERRIDE=fusion
+      - QT_QPA_PLATFORMTHEME=
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - mybrowser_data:/root/.mybrowser
+      - ./docker/supervisord.conf:/etc/supervisor/conf.d/mybrowser.conf:ro
+      - ./launch_mybrowser.py:/app/launch_mybrowser.py:ro
+      - ./docker/maximize.sh:/app/docker/maximize.sh:ro
+      - ./custom.py:/app/custom.py:ro
+      - ./ollama_cors_proxy.py:/app/ollama_cors_proxy.py:ro
+      - ./ollama_cors_proxy.py:/app/ollama_cors_proxy.py:rw
+      - ./shared:/shared          # ← host↔container file exchange folder
+    networks:
+      - mybrowser_net
+    restart: unless-stopped
+    shm_size: '512mb'
+
+volumes:
+  mybrowser_data:
+    driver: local
+
+networks:
+  mybrowser_net:
+    driver: bridge

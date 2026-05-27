@@ -1,0 +1,3 @@
+# Openbox autostart — runs after WM is ready
+# Small delay then maximize whatever window is open
+(sleep 12 && wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz) &

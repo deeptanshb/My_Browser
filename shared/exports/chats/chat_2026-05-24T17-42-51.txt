@@ -1,0 +1,21 @@
+DeepBrowse Chat Export
+Date: 5/24/2026, 11:12:51 PM
+==================================================
+
+You: code to swap 2 numbers
+
+AI:  To swap two numbers in Python, you can use the following simple method:
+
+```python
+a = 5
+b = 10
+
+# Swapping a and b
+a, b = b, a
+
+print(a) # Outputs: 10
+print(b) # Outputs: 5
+```
+
+In this code, `a` and `b` are the two numbers you want to swap. The line with `a, b = b, a` swaps the values of `a` and `b`.
+

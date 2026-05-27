@@ -243,6 +243,28 @@ try:
     logger.info("✅ PyQt6 loaded")
     
     logger.info(f"📥 Importing browser from custom.py...")
+
+    # Apply proxy to Chromium before import
+    try:
+        import json as _json
+        _sf = os.path.expanduser("~/.mybrowser/settings.json")
+        with open(_sf) as _f:
+            _s = _json.load(_f)
+        if _s.get('proxy_enabled') and _s.get('proxy_host'):
+            _ph = _s['proxy_host'].strip()
+            _pp = str(_s.get('proxy_port', 9050))
+            if _ph.startswith('socks5://'):
+                _proxy_flag = f'--proxy-server={_ph}'
+            elif _ph.startswith('http://'):
+                _proxy_flag = f'--proxy-server={_ph}:{_pp}'
+            else:
+                _proxy_flag = f'--proxy-server=socks5://{_ph}:{_pp}'
+            existing = os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '')
+            os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = existing + ' ' + _proxy_flag
+            logger.info(f"🔒 Proxy applied to Chromium: {_proxy_flag}")
+    except Exception as _e:
+        logger.info(f"Proxy load skipped: {_e}")
+
     from custom import ModernBrowser
     
     logger.info("🎨 Initializing Qt Application...")
@@ -252,6 +274,9 @@ try:
     
     font = QFont("Segoe UI", 10)
     app.setFont(font)
+    app.setStyleSheet("* { color: black; } QComboBox { color: black; background: white; } QComboBox QAbstractItemView { color: black; background: white; } QMenu { color: black; background: white; } QMenu::item:selected { color: white; background: #6c63ff; } QTabBar::tab { color: black; } QLabel { color: black; }")
+    app.setStyleSheet("QComboBox QAbstractItemView { background-color: white; color: black; } QComboBox { color: black; background-color: white; } QMenu { background-color: white; color: black; } QMenu::item:selected { background-color: #6c63ff; color: white; } QTabBar::tab { color: black; } QTabBar::tab:selected { color: black; }")
+    app.setStyleSheet("QComboBox QAbstractItemView { background-color: white; color: black; selection-background-color: #6c63ff; selection-color: white; } QComboBox { color: black; background-color: white; } QMenu { background-color: white; color: black; } QMenu::item:selected { background-color: #6c63ff; color: white; }")
     
     logger.info("🪟 Creating browser window...")
     window = ModernBrowser()
@@ -287,7 +312,9 @@ try:
     logger.info("=" * 70)
     logger.info("")
     
-    window.show()
+    window.showFullScreen()
+    window.setGeometry(0, 0, 1280, 720)
+
     
     # Run the application
     exit_code = app.exec()

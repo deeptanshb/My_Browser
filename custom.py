@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
-    QWebEngineProfile, QWebEngineDownloadRequest,
+    QWebEngineProfile, QWebEngineDownloadRequest, QWebEngineUrlRequestInterceptor,
     QWebEnginePage, QWebEngineSettings, QWebEngineScript
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon, QFont
@@ -65,7 +65,7 @@ except ImportError as e:
 
 # Search Engine Configuration - BROWSERS (what user sees)
 BROWSERS = {
-    'My Browser': {
+    'DeepBrowse': {
         'url': 'about:home',
         'search_url': 'BACKEND',  # Will use backend_search_engine from settings
         'icon': '🦕',
@@ -190,8 +190,8 @@ PROXY_SERVERS = {
     'Custom': {'host': '', 'port': 0, 'type': 'http'},
 }
 
-DEFAULT_BROWSER = 'My Browser'
-DEFAULT_SEARCH_ENGINE = 'My Browser'  # Default search engine for startup
+DEFAULT_BROWSER = 'DeepBrowse'
+DEFAULT_SEARCH_ENGINE = 'DeepBrowse'  # Default search engine for startup
 
 
 class PrivacyLogger:
@@ -232,6 +232,10 @@ class PrivacyLogger:
             pass
     
     def log_page_visit(self, url, title=""):
+        if not url or url.startswith('data:') or url.startswith('about:'):
+            return
+        if 'DeepBrowse - Search' in title or 'deeptanshu.deepbrowse.internal' in url:
+            return
         """Log a page visit"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
@@ -312,7 +316,7 @@ class ExtensionManager:
                 'code': '''
                     // Force light mode on all websites by default
                     (function() {
-                        // Skip My Browser custom pages
+                        // Skip DeepBrowse custom pages
                         if (window.location.href.startsWith('data:') || 
                             window.location.href.startsWith('about:')) {
                             return;
@@ -374,7 +378,7 @@ class ExtensionManager:
             {
                 'name': 'Dark Mode',
                 'code': '''
-                    // Smart dark mode - UI elements for My Browser, full invert for other sites
+                    // Smart dark mode - UI elements for DeepBrowse, full invert for other sites
                     (function() {
                         // Check if dark mode style already exists
                         if (document.getElementById('mybrowser-darkmode')) {
@@ -385,12 +389,12 @@ class ExtensionManager:
                         const style = document.createElement('style');
                         style.id = 'mybrowser-darkmode';
                         
-                        // Check if this is My Browser custom page
+                        // Check if this is DeepBrowse custom page
                         const isMyBrowserPage = window.location.href.startsWith('data:') || 
                                                window.location.href.startsWith('about:');
                         
                         if (isMyBrowserPage) {
-                            // For My Browser: Only darken UI elements, keep gradient background
+                            // For DeepBrowse: Only darken UI elements, keep gradient background
                             style.textContent = `
                                 /* Keep the gradient background beautiful */
                                 body, html {
@@ -531,7 +535,7 @@ class CustomSearchPage:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>My Browser - Search</title>
+            <title>DeepBrowse - Search</title>
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body {
@@ -548,19 +552,19 @@ class CustomSearchPage:
                 .stars { position: absolute; width: 100%; height: 100%; overflow: hidden; }
                 .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle 3s infinite; }
                 @keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-                .container { position: relative; z-index: 10; text-align: center; padding: 2rem; max-width: 900px; width: 100%; }
-                .logo { font-size: 6rem; margin-bottom: 1rem; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3)); }
+                .container { position: relative; z-index: 10; text-align: center; padding: 1rem; max-width: 700px; width: 100%; overflow: visible; }
+                .logo { font-size: 4rem; margin-bottom: 0.3rem; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3)); }
                 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-                h1 { color: white; font-size: 4rem; font-weight: 700; text-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-                .subtitle { color: rgba(255, 255, 255, 0.95); font-size: 1.4rem; margin-bottom: 3rem; font-weight: 300; }
-                .search-container { margin: 3rem auto; max-width: 700px; }
+                h1 { color: white; font-size: 2.5rem; font-weight: 700; text-shadow: 0 4px 6px rgba(0,0,0,0.2); margin: 0.2rem 0; }
+                .subtitle { color: rgba(255, 255, 255, 0.95); font-size: 1.1rem; margin-bottom: 0.8rem; font-weight: 300; }
+                .search-container { margin: 0.8rem auto; max-width: 700px; position: relative; z-index: 500; }
                 .search-wrapper { position: relative; background: rgba(255, 255, 255, 0.95); border-radius: 50px; padding: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); transition: all 0.3s; }
                 .search-wrapper:hover { background: white; box-shadow: 0 15px 50px rgba(0,0,0,0.4); transform: translateY(-2px); }
                 .search-icon { position: absolute; left: 25px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; color: #667eea; }
                 #searchInput { width: 100%; padding: 18px 60px; border: none; background: transparent; font-size: 1.1rem; color: #1a1a2e; outline: none; font-weight: 500; }
-                .time { font-size: 3.5rem; color: white; font-weight: 200; margin-top: 2rem; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-                .date { font-size: 1.3rem; color: rgba(255, 255, 255, 0.9); margin-bottom: 2rem; }
-                .quick-links { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
+                .time { font-size: 2.5rem; color: white; font-weight: 200; margin-top: 0.2rem; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+                .date { font-size: 1.1rem; color: rgba(255, 255, 255, 0.9); margin-bottom: 0.5rem; }
+                .quick-links { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; transition: opacity 0.3s; position: relative; z-index: 1; }
                 .quick-link { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 15px; padding: 1rem 1.5rem; color: white; font-weight: 500; cursor: pointer; transition: all 0.3s; }
                 .quick-link:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-3px); }
                 .privacy-badge { background: rgba(76, 175, 80, 0.3); padding: 0.5rem 1rem; border-radius: 10px; color: white; margin-top: 2rem; display: inline-block; }
@@ -568,14 +572,14 @@ class CustomSearchPage:
                 /* DeepTalks.AI Chatbot Styles */
                 .chatbot-container {
                     position: fixed;
-                    bottom: 30px;
-                    right: 30px;
+                    bottom: 15px;
+                    right: 60px;
                     z-index: 1000;
                 }
                 
                 .chatbot-toggle {
-                    width: 200px;
-                    height: 65px;
+                    width: 160px;
+                    height: 52px;
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     border-radius: 33px;
                     display: flex;
@@ -645,18 +649,19 @@ class CustomSearchPage:
                 
                 .chatbot-window {
                     position: fixed;
-                    bottom: 110px;
-                    right: 30px;
-                    width: 420px;
-                    height: 650px;
+                    top: 60px;
+                    right: 5px;
+                    width: 340px;
+                    height: calc(100vh - 80px);
                     background: white;
-                    border-radius: 25px;
+                    border-radius: 16px;
                     box-shadow: 0 20px 80px rgba(0,0,0,0.4);
                     display: none;
                     flex-direction: column;
                     overflow: hidden;
                     animation: slideInUp 0.4s ease-out;
                     border: 3px solid rgba(102, 126, 234, 0.3);
+                    z-index: 999;
                 }
                 
                 @keyframes slideInUp {
@@ -671,7 +676,7 @@ class CustomSearchPage:
                 .chatbot-header {
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     color: white;
-                    padding: 25px;
+                    padding: 6px 10px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -882,7 +887,8 @@ class CustomSearchPage:
                 
                 .model-indicator {
                     text-align: center;
-                    padding: 10px;
+                    padding: 3px;
+                    font-size: 11px;
                     background: rgba(102, 126, 234, 0.1);
                     font-size: 12px;
                     color: #667eea;
@@ -903,7 +909,8 @@ class CustomSearchPage:
             <div class="background"><div class="stars" id="stars"></div></div>
             <div class="container">
                 <div class="logo">🦕</div>
-                <h1>My Browser</h1>
+                <h1 style="font-size:2.5rem;margin:0.2rem 0 0;">DeepBrowse</h1>
+                <p style="color:rgba(255,255,255,0.6);font-size:0.75rem;margin:0.1rem 0 0.3rem 0;">© Deeptanshu Bhattacharya</p>
                 <p class="subtitle">🔒 Private & Secure Browsing</p>
                 <div class="search-container">
                     <div class="search-wrapper">
@@ -924,9 +931,9 @@ class CustomSearchPage:
             
             <!-- DeepTalks.AI Chatbot -->
             <div class="chatbot-container">
-                <div class="chatbot-toggle" onclick="toggleChatbot()">
+                <div class="chatbot-toggle" onclick="toggleChatbotPanel()">
                     <span class="ai-badge">AI</span>
-                    <span class="chatbot-toggle-icon">🦜</span>
+                    <span class="chatbot-toggle-icon">🦖</span>
                     <span class="chatbot-toggle-text">deeptalks.ai</span>
                 </div>
                 
@@ -934,12 +941,24 @@ class CustomSearchPage:
                     <div class="chatbot-header">
                         <div class="chatbot-title">
                             <div class="chatbot-title-main">
-                                <span class="chatbot-title-icon">🦜</span>
+                                <span class="chatbot-title-icon">🦖</span>
                                 <span class="chatbot-title-text">deeptalks.ai</span>
                             </div>
                             <span class="chatbot-subtitle">Powered by Open Source LLM</span>
                         </div>
-                        <button class="chatbot-close" onclick="toggleChatbot()">×</button>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <button onclick="newChat()" title="New Chat"
+                                style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);
+                                color:white;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;">
+                                🆕 New
+                            </button>
+                            <button onclick="exportChat()" title="Export Chat"
+                                style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);
+                                color:white;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;">
+                                💾 Save
+                            </button>
+                            <button class="chatbot-close" onclick="toggleChatbotPanel()">×</button>
+                        </div>
                     </div>
                     
                     <div class="model-indicator" id="modelIndicator">
@@ -1001,16 +1020,60 @@ class CustomSearchPage:
                 updateTime();
                 setInterval(updateTime, 1000);
                 
+                const searchInput = document.getElementById('searchInput');
+                const suggBox = document.createElement('div');
+                suggBox.id = 'suggBox';
+                suggBox.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:white;' +
+                    'border-radius:0 0 12px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.15);' +
+                    'z-index:1000;overflow:hidden;display:none;max-height:250px;overflow-y:auto;';
+                searchInput.parentElement.appendChild(suggBox);
+
+                let suggTimeout;
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(suggTimeout);
+                    const q = this.value.trim();
+                    if (q.length < 2) { suggBox.style.display='none'; var ql=document.querySelector('.quick-links'); if(ql) ql.style.visibility='visible'; return; }
+                    suggTimeout = setTimeout(async () => {
+                        try {
+                            const r = await fetch('http://localhost:8081/autocomplete?q=' + encodeURIComponent(q));
+                            const suggestions = await r.json();
+                            if (suggestions.length === 0) { suggBox.style.display='none'; return; }
+                            suggBox.innerHTML = suggestions.slice(0,8).map(s =>
+                                '<div style="padding:10px 16px;cursor:pointer;color:#333;font-size:14px;' +
+                                'border-bottom:1px solid #f0f0f0;" onmousedown="performSearch(\'' +
+                                s.replace(/'/g,"\'") + '\')" onmouseover="this.style.background=\'#f5f5ff\'" ' +
+                                'onmouseout="this.style.background=\'white\'">🔍 ' + s + '</div>'
+                            ).join('');
+                            suggBox.style.display = 'block';
+                            document.querySelector('.quick-links') && (document.querySelector('.quick-links').style.visibility='hidden');
+                        } catch(e) { suggBox.style.display='none'; }
+                    }, 250);
+                });
+
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        suggBox.style.display = 'none';
+                        performSearch(this.value);
+                    }
+                });
+
+                searchInput.addEventListener('blur', function() {
+                    setTimeout(() => { suggBox.style.display='none'; var ql=document.querySelector('.quick-links'); if(ql) ql.style.visibility='visible'; }, 200);
+                });
+
                 document.getElementById('searchInput').addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') performSearch(this.value);
                 });
                 
                 function performSearch(query) {
                     if (!query || query.trim() === '') return;
-                    if (query.includes('.') && !query.includes(' ')) {
-                        window.location.href = query.startsWith('http') ? query : 'http://' + query;
+                    query = query.trim();
+                    if (query.startsWith('http://') || query.startsWith('https://')) {
+                        window.location.href = query;
+                    } else if (query.includes('.') && !query.includes(' ')) {
+                        window.location.href = 'https://' + query;
                     } else {
-                        window.location.href = 'https://search.brave.com/search?q=' + encodeURIComponent(query);
+                        window._pendingSearch = query;
                     }
                 }
                 
@@ -1049,7 +1112,47 @@ class CustomSearchPage:
                     document.getElementById('modelIndicator').textContent = text;
                 }
 
+                let chatSessions = [];
+                let sessionStartTime = new Date().toISOString();
+
+                function newChat() {
+                    if (conversationHistory.length > 0) {
+                        chatSessions.push({
+                            id: Date.now(),
+                            started: sessionStartTime,
+                            messages: [...conversationHistory]
+                        });
+                    }
+                    conversationHistory = [];
+                    sessionStartTime = new Date().toISOString();
+                    const c = document.getElementById('chatMessages');
+                    c.innerHTML = '';
+                    addBotMessage('👋 New chat started! How can I help you?');
+                }
+
+                function exportChat() {
+                    if (conversationHistory.length === 0) {
+                        addBotMessage('⚠️ No messages to export yet.');
+                        return;
+                    }
+                    const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+                    const filename = 'chat_' + ts + '.txt';
+                    let text = 'DeepBrowse Chat Export\n';
+                    text += 'Date: ' + new Date().toLocaleString() + '\n';
+                    text += '='.repeat(50) + '\n\n';
+                    conversationHistory.forEach(msg => {
+                        text += (msg.role === 'user' ? 'You: ' : 'AI: ') + msg.content + '\n\n';
+                    });
+                    window._exportChatContent = text;
+                    window._exportChatFilename = filename;
+                    window._exportChatRequested = true;
+                }
+
                 function toggleChatbot() {
+                    window.location.href = 'https://deeptanshu.deepbrowse.internal/chatbot';
+                }
+
+                function toggleChatbotPanel() {
                     const win = document.getElementById('chatbotWindow');
                     chatbotOpen = !chatbotOpen;
                     if (chatbotOpen) {
@@ -1208,7 +1311,7 @@ class CustomSearchPage:
                                 body: JSON.stringify({
                                     model: currentModel || 'mistral:latest',
                                     prompt: prompt, stream: false,
-                                    system: 'You are DeepTalks.AI. Use web search results when provided. Analyse files carefully. Format code in triple-backtick blocks.'
+                                    system: 'You are DeepTalks.AI, a helpful AI assistant. Answer conversationally in plain text. Only use triple-backtick code blocks when the response actually contains code. For general questions, sports, news, facts — respond in normal sentences, not code.'
                                 })
                             });
                             if (r.ok) {
@@ -1242,20 +1345,59 @@ class CustomSearchPage:
                     const cd = document.createElement('div'); cd.className = 'message-content';
 
                     let f = text;
-                    // code blocks first (preserve them)
                     const codeBlocks = [];
                     f = f.replace(/```(\w+)?\n?([\s\S]*?)```/g, function(_, lang, code) {
                         const idx = codeBlocks.length;
-                        codeBlocks.push('<pre><code class="language-' + (lang||'text') + '">'
-                            + code.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</code></pre>');
+                        window['__code_' + idx] = code;
+                        const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                        codeBlocks.push(
+                            '<div style="position:relative;margin:8px 0;">' +
+                            '<button class="copy-btn" data-code="' + idx + '" ' +
+                            'style="position:absolute;top:6px;right:6px;background:rgba(255,255,255,0.2);' +
+                            'border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;' +
+                            'padding:2px 8px;cursor:pointer;font-size:11px;z-index:10;">📋 Copy</button>' +
+                            '<pre style="margin:0;padding:12px 40px 12px 12px;background:rgba(0,0,0,0.35);' +
+                            'border-radius:6px;overflow-x:auto;color:#e2e8f0;"><code>' + escaped + '</code></pre></div>'
+                        );
                         return '%%CODE_' + idx + '%%';
                     });
                     f = f.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                    f = f.replace(/`([^`]+)`/g, '<code>$1</code>');
+                    f = f.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.15);padding:1px 4px;border-radius:3px;font-family:monospace;">$1</code>');
                     f = f.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                    f = f.replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" style="color:#74c0fc;text-decoration:underline;" onclick="window.location.href=this.href;return false;">$1</a>');
                     f = f.replace(/\n/g, '<br>');
                     codeBlocks.forEach((block, i) => { f = f.replace('%%CODE_' + i + '%%', block); });
                     cd.innerHTML = f;
+                    cd.querySelectorAll('.copy-btn').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var idx = this.getAttribute('data-code');
+                            var code = window['__code_' + idx] || '';
+                            var self = this;
+                            // Fallback copy for data: URI context
+                            try {
+                                if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(code).then(() => {
+                                        self.textContent = '✅ Copied!';
+                                        setTimeout(() => self.textContent = '📋 Copy', 1500);
+                                    });
+                                } else {
+                                    var ta = document.createElement('textarea');
+                                    ta.value = code;
+                                    ta.style.position = 'fixed';
+                                    ta.style.opacity = '0';
+                                    document.body.appendChild(ta);
+                                    ta.focus(); ta.select();
+                                    document.execCommand('copy');
+                                    document.body.removeChild(ta);
+                                    self.textContent = '✅ Copied!';
+                                    setTimeout(() => self.textContent = '📋 Copy', 1500);
+                                }
+                            } catch(e) {
+                                self.textContent = '❌ Error';
+                                setTimeout(() => self.textContent = '📋 Copy', 1500);
+                            }
+                        });
+                    });
                     d.appendChild(cd);
 
                     if (sources && sources.length > 0) {
@@ -1303,7 +1445,7 @@ class PrivacySettingsDialog(QDialog):
         self.parent_browser = parent
         self.settings = settings
         self.setWindowTitle("Privacy & Security Settings")
-        self.setGeometry(200, 200, 700, 600)
+        self.setGeometry(50, 30, 750, 620)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
         self.setup_ui()
     
@@ -1329,7 +1471,10 @@ class PrivacySettingsDialog(QDialog):
         proxy_form.addWidget(self.proxy_port)
         proxy_layout.addLayout(proxy_form)
         
-        proxy_info = QLabel("ℹ️ Configure your VPN/SOCKS proxy here\nExample: 127.0.0.1:1080 for local SOCKS")
+        proxy_info = QLabel(
+            "ℹ️ Formats: socks5://host:port  |  http://host:port  |  host:port\n"
+            "Tor: socks5://127.0.0.1:9050   SSH tunnel: socks5://127.0.0.1:1080\n"
+            "With auth: socks5://user:pass@host:port")
         proxy_info.setWordWrap(True)
         proxy_layout.addWidget(proxy_info)
         
@@ -1450,8 +1595,9 @@ class SearchLogViewer(QDialog):
         super().__init__(parent)
         self.logger = logger
         self.setWindowTitle("Search & Privacy Logs")
-        self.setGeometry(150, 80, 1100, 750)
+        self.setGeometry(50, 50, 1100, 580)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint)
+        self.setStyleSheet("background:#0f0f23; color:white; QTabBar::tab { background:#1e1e3a; color:#aaa; padding:8px 18px; border-radius:6px 6px 0 0; } QTabBar::tab:selected { background:#2a2a5a; color:white; font-weight:bold; } QTextEdit { background:#1a1a2e; color:white; } QLabel { color:white; } QPushButton { background:#2a2a5a; color:white; padding:6px 12px; border-radius:4px; }")
         self.setup_ui()
 
     def setup_ui(self):
@@ -1553,13 +1699,27 @@ class SearchLogViewer(QDialog):
         self.setLayout(layout)
     
     def export_logs(self):
-        filename, _ = QFileDialog.getSaveFileName(self, "Export Logs", "", "Text Files (*.txt)")
-        if filename:
+        import os, datetime
+        # Try file dialog first (works locally), fall back to fixed path (Docker)
+        filename = None
+        try:
+            filename, _ = QFileDialog.getSaveFileName(self, "Export Logs", "", "Text Files (*.txt)")
+        except Exception:
+            pass
+        if not filename:
+            export_dir = os.path.expanduser("~/.mybrowser/exports")
+            os.makedirs(export_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.join(export_dir, f"mybrowser_logs_{ts}.txt")
+        try:
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(self.search_text.toPlainText())
                 f.write("\n\n--- PAGE VISITS ---\n\n")
                 f.write(self.visit_text.toPlainText())
-            QMessageBox.information(self, "Success", "Logs exported successfully!")
+            QMessageBox.information(self, "Exported",
+                f"Logs saved to:\n{filename}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Export failed: {e}")
     
     def clear_logs(self):
         reply = QMessageBox.question(self, "Clear Logs", 
@@ -1652,6 +1812,15 @@ class ExtensionsDialog(QDialog):
             QMessageBox.information(self, "Success", "Extension added!")
 
 
+class ProxyRequestInterceptor(QWebEngineUrlRequestInterceptor):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.proxy_str = None
+
+    def interceptRequest(self, info):
+        pass  # Proxy applied via QNetworkProxy + env vars
+
+
 class CustomBrowserTab(QWidget):
     """Browser tab with privacy features and extensions"""
     
@@ -1677,14 +1846,14 @@ class CustomBrowserTab(QWidget):
         self.setLayout(layout)
         
         # ONLY apply custom branding if this is "My Browser" engine
-        if engine_name == 'My Browser':
+        if engine_name == 'DeepBrowse':
             self.apply_custom_browser_theme()
         
         # Apply extensions to all tabs
         self.apply_extensions()
     
     def apply_custom_browser_theme(self):
-        """Apply My Browser branding"""
+        """Apply DeepBrowse branding"""
         custom_css = """
         #header, .brave-logo, [class*="brave"], [id*="brave"],
         header, nav.top-nav, .search-header, .header-wrapper,
@@ -1703,7 +1872,7 @@ class CustomBrowserTab(QWidget):
         }
         
         body:after {
-            content: '🦕 My Browser';
+            content: '🦕 DeepBrowse';
             position: fixed;
             top: 0;
             left: 0;
@@ -1746,8 +1915,8 @@ class ModernBrowser(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("My Browser - Privacy Edition")
-        self.setGeometry(100, 100, 1400, 900)
+        self.setWindowTitle("DeepBrowse - Privacy Edition")
+        self.setGeometry(0, 0, 1280, 720)
         # Explicitly request all three window control buttons (close / minimize / maximize)
         # Without this some Linux window managers omit the minimize button with Qt6.
         self.setWindowFlags(
@@ -1799,6 +1968,7 @@ class ModernBrowser(QMainWindow):
         # Create profile
         self.profile = QWebEngineProfile.defaultProfile()
         self.profile.downloadRequested.connect(self.handle_download)
+        self._active_proxy_str = None
         
         # UI Setup (create status bar first!)
         self.status = QStatusBar()
@@ -1852,11 +2022,41 @@ class ModernBrowser(QMainWindow):
             
             if proxy_host:
                 proxy = QNetProxy()
-                proxy.setType(QNetProxy.ProxyType.HttpProxy)
-                proxy.setHostName(proxy_host)
-                proxy.setPort(proxy_port)
+                # Parse socks5://host:port or socks5://user:pass@host:port
+                raw = proxy_host.strip()
+                if raw.startswith('socks5://'):
+                    raw = raw[9:]
+                    if '@' in raw:
+                        creds, hostport = raw.rsplit('@', 1)
+                        user, pw = creds.split(':', 1) if ':' in creds else (creds, '')
+                        proxy.setUser(user); proxy.setPassword(pw)
+                    else:
+                        hostport = raw
+                    host, port = hostport.rsplit(':', 1) if ':' in hostport else (hostport, str(proxy_port))
+                    proxy.setType(QNetProxy.ProxyType.Socks5Proxy)
+                    proxy.setHostName(host)
+                    proxy.setPort(int(port))
+                elif raw.startswith('http://'):
+                    raw = raw[7:]
+                    host, port = raw.rsplit(':', 1) if ':' in raw else (raw, str(proxy_port))
+                    proxy.setType(QNetProxy.ProxyType.HttpProxy)
+                    proxy.setHostName(host)
+                    proxy.setPort(int(port))
+                else:
+                    # Plain host:port — default to SOCKS5
+                    host, port = raw.rsplit(':', 1) if ':' in raw else (raw, str(proxy_port))
+                    proxy.setType(QNetProxy.ProxyType.Socks5Proxy)
+                    proxy.setHostName(host)
+                    proxy.setPort(int(port))
                 QNetProxy.setApplicationProxy(proxy)
-                self.status.showMessage(f"🔒 Proxy enabled: {proxy_host}:{proxy_port}", 5000)
+                # Also apply to QtWebEngine (Chromium) via profile
+                if proxy.type() == QNetProxy.ProxyType.Socks5Proxy:
+                    proxy_str = f"socks5://{proxy.hostName()}:{proxy.port()}"
+                else:
+                    proxy_str = f"http://{proxy.hostName()}:{proxy.port()}"
+                # Set proxy for WebEngine requests via interceptor
+                self._active_proxy_str = proxy_str
+                self.status.showMessage(f"🔒 Proxy active: {proxy_str}", 5000)
         else:
             QNetProxy.setApplicationProxy(QNetProxy())
         
@@ -1877,12 +2077,13 @@ class ModernBrowser(QMainWindow):
         indicators.append(f"🌐 {dns}")
         
         status = " | ".join(indicators)
-        self.setWindowTitle(f"My Browser - {status}")
+        self.setWindowTitle(f"DeepBrowse - {status}")
     
-    def log_search(self, query):
-        """Log a search query"""
+    def log_search(self, query, engine=None):
+        """Log a search query with the actual engine used"""
         if self.settings.get('logging_enabled', True):
-            self.privacy_logger.log_search(query, self.current_search_engine)
+            actual_engine = engine if engine else self.current_search_engine
+            self.privacy_logger.log_search(query, actual_engine)
     
     def navigate_to_url(self):
         """Navigate with search logging"""
@@ -1896,13 +2097,14 @@ class ModernBrowser(QMainWindow):
             elif '.' in q and ' ' not in q:
                 url = 'http://' + q
             else:
-                # Plain keyword — log immediately
-                self.log_search(q)
-                if self.current_search_engine == 'My Browser':
+                if self.current_search_engine == 'DeepBrowse':
                     backend_engine = self.settings.get('backend_search_engine', 'Brave Search')
                     search_url = SEARCH_ENGINES[backend_engine]['search_url']
+                    self.log_search(q, engine=backend_engine)
                 else:
                     search_url = BROWSERS[self.current_search_engine]['search_url']
+                    self.log_search(q, engine=self.current_search_engine)
+                    self.status.showMessage(f"🔍 {self.current_search_engine}", 3000)
                 url = search_url.format(q.replace(' ', '+'))
             browser.setUrl(QUrl(url))
     
@@ -1946,6 +2148,9 @@ class ModernBrowser(QMainWindow):
         self.engine_selector.setStyleSheet("""
             QComboBox { background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3);
                        border-radius: 10px; padding: 8px 12px; color: white; font-size: 14px; min-width: 180px; }
+            QComboBox QAbstractItemView { background: #3d2b7a; color: white;
+                       selection-background-color: #6c63ff; selection-color: white;
+                       border: 1px solid rgba(255,255,255,0.3); }
         """)
         navbar.addWidget(self.engine_selector)
         
@@ -2131,7 +2336,70 @@ class ModernBrowser(QMainWindow):
             tab.load_url(engine_url)
         
         # Fixed: Use a proper connection that doesn't reference tab after deletion
+        # Poll for chat export requests
+        from PyQt6.QtCore import QTimer as _QTimer
+        _export_timer = _QTimer()
+        def _check_export():
+            if tab and tab.browser:
+                tab.browser.page().runJavaScript(
+                    "window._exportChatRequested || false",
+                    lambda v: self._handle_chat_export(v, tab) if v else None
+                )
+                tab.browser.page().runJavaScript(
+                    "window._openChatbotTab || false",
+                    lambda v: self._open_chatbot_tab() if v else None
+                )
+                if hasattr(self, '_chatbot_tab_opened') and self._chatbot_tab_opened:
+                    tab.browser.page().runJavaScript("window._openChatbotTab = false;")
+                    self._chatbot_tab_opened = False
+                def handle_search(query):
+                    if query:
+                        from urllib.parse import quote_plus
+                        fresh = self.load_settings()
+                        engine = fresh.get('backend_search_engine', 'DuckDuckGo')
+                        search_url = SEARCH_ENGINES.get(engine, SEARCH_ENGINES['DuckDuckGo'])['search_url']
+                        final_url = search_url.format(quote_plus(query))
+                        self.log_search(query, engine=engine)
+                        dns = fresh.get('dns_provider', 'Cloudflare')
+                        self.status.showMessage(f"🔍 {engine} | 🌐 {dns}", 3000)
+                        from PyQt6.QtCore import QUrl
+                        if tab.browser:
+                            tab.browser.setUrl(QUrl(final_url))
+                        tab.browser.page().runJavaScript("window._pendingSearch = null;")
+                tab.browser.page().runJavaScript(
+                    "window._pendingSearch || null",
+                    handle_search
+                )
+        _export_timer.timeout.connect(_check_export)
+        _export_timer.start(1500)
+        tab._export_timer = _export_timer
+
         def on_url_changed(qurl):
+            browser = tab.browser
+            url_str = qurl.toString()
+
+            # ── Intercept chatbot URL — open as full tab ──────────────
+            if url_str and 'deeptanshu.deepbrowse.internal/chatbot' in url_str:
+                self._open_chatbot_tab()
+                return
+
+            # ── Intercept internal search — redirect to selected engine ──
+            if url_str and 'deeptanshu.deepbrowse.internal/search' in url_str:
+                from urllib.parse import urlparse, parse_qs, quote_plus
+                qs = parse_qs(urlparse(url_str).query)
+                query = qs.get('q', [''])[0]
+                if query:
+                    fresh = self.load_settings()
+                    engine = fresh.get('backend_search_engine', 'DuckDuckGo')
+                    search_url = SEARCH_ENGINES.get(engine, SEARCH_ENGINES['DuckDuckGo'])['search_url']
+                    final_url = search_url.format(quote_plus(query))
+                    self.log_search(query, engine=engine)
+                    dns = fresh.get('dns_provider', 'Cloudflare')
+                    self.status.showMessage(f"🔍 {engine} | 🌐 {dns}", 3000)
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(0, lambda u=final_url: browser.setUrl(QUrl(u)))
+                return
+
             browser = tab.browser
             if browser and browser == self.current_browser():
                 url_string = qurl.toString()
@@ -2394,7 +2662,7 @@ class ModernBrowser(QMainWindow):
 
         dlg = QMainWindow()
         dlg.setWindowTitle("🌐 Network Monitor")
-        dlg.setGeometry(100, 100, 1060, 720)
+        dlg.setGeometry(50, 50, 1060, 580)
         dlg.setStyleSheet("background:#0f0f23; color:white;")
         main_lay = QVBoxLayout()
 
@@ -2690,7 +2958,7 @@ class ModernBrowser(QMainWindow):
             self.security_dashboard_window = QMainWindow()
             dlg = self.security_dashboard_window
             dlg.setWindowTitle("🛡️ Security Dashboard")
-            dlg.setGeometry(120, 120, 820, 620)
+            dlg.setGeometry(50, 50, 820, 560)
             dlg.setStyleSheet("background:#0f0f23; color:white;")
             lay = QVBoxLayout(); lay.setSpacing(8)
 
@@ -2854,12 +3122,17 @@ class ModernBrowser(QMainWindow):
         choose_btn.clicked.connect(pick)
         lay.addWidget(choose_btn)
 
-        my_ip = self.ip_masking.get_real_ip() if self.ip_masking else "unknown"
+        real_ip = self.ip_masking.get_real_ip() if self.ip_masking else "unknown"
+        status = self.ip_masking.get_status() if self.ip_masking else {}
+        display_ip = status.get('masked_ip') if status.get('enabled') and status.get('masked_ip') else real_ip
         PORT = 9876
+        ip_note = " (masked)" if display_ip != real_ip else " (real)"
         conn_lbl = QLabel(
             f"📡  Give these details to the receiver:\n"
-            f"    IP Address:  {my_ip}\n"
-            f"    Port:        {PORT}")
+            f"    IP Address:  {display_ip}{ip_note}\n"
+            f"    Port:        {PORT}\n"
+            f"\n💡 Enable IP Masking in Security → IP Masking to show\n"
+            f"   an obfuscated IP. Transfer still works normally.")
         conn_lbl.setStyleSheet(
             "font-family:'Courier New';font-size:13px;"
             "background:rgba(0,255,0,0.07);padding:12px;border-radius:8px;")
@@ -3050,6 +3323,204 @@ class ModernBrowser(QMainWindow):
     #  Called from the chat toolbar buttons added in create_modern_navigation_bar
     # ════════════════════════════════════════════════════════════
 
+    def _open_chatbot_tab(self):
+        """Open DeepTalks.AI chatbot as a full browser tab"""
+        self._chatbot_tab_opened = True
+        # Generate full page chatbot HTML
+        chatbot_html = self._get_chatbot_fullpage_html()
+        tab = CustomBrowserTab(self.profile, 'DeepBrowse', self, self.extension_manager)
+        i = self.tabs.addTab(tab, "🦖 DeepTalks.AI")
+        self.tabs.setCurrentIndex(i)
+        tab.browser.setHtml(chatbot_html)
+
+    def _get_chatbot_fullpage_html(self):
+        """Full page chatbot interface"""
+        return """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>DeepTalks.AI</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); min-height:100vh; display:flex; flex-direction:column; }
+.header { background: rgba(0,0,0,0.2); padding: 15px 20px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { color:white; font-size:1.4rem; }
+.header-btns { display:flex; gap:8px; }
+.header-btns button { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:13px; }
+.header-btns button:hover { background:rgba(255,255,255,0.3); }
+.model-bar { background:rgba(255,255,255,0.1); text-align:center; padding:6px; color:rgba(255,255,255,0.8); font-size:12px; }
+.messages { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px; }
+.message { max-width:75%; word-wrap:break-word; }
+.message.user { align-self:flex-end; }
+.message.bot { align-self:flex-start; }
+.message-content { padding:12px 16px; border-radius:16px; font-size:14px; line-height:1.6; }
+.user .message-content { background:rgba(255,255,255,0.15); color:white; border-radius:16px 16px 4px 16px; }
+.bot .message-content { background:white; color:#333; border-radius:16px 16px 16px 4px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+.bottom { background:white; padding:15px 20px; display:flex; flex-direction:column; gap:10px; }
+.attach-row { display:flex; gap:8px; align-items:center; }
+.attach-btn { background:#f0f0f0; border:1px solid #ddd; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px; }
+.input-row { display:flex; gap:10px; align-items:center; }
+.input-row input { flex:1; padding:12px 16px; border:2px solid #e0e0e0; border-radius:25px; font-size:14px; outline:none; }
+.input-row input:focus { border-color:#667eea; }
+.send-btn { background:linear-gradient(135deg,#667eea,#764ba2); border:none; color:white; width:46px; height:46px; border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
+pre { background:#1a1a2e; color:#e2e8f0; padding:12px; border-radius:8px; overflow-x:auto; position:relative; }
+.copy-btn { position:absolute; top:6px; right:6px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:white; border-radius:4px; padding:2px 8px; cursor:pointer; font-size:11px; }
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>🦖 DeepTalks.AI</h1>
+    <div class="header-btns">
+        <button onclick="newChat()">🆕 New Chat</button>
+        <button onclick="exportChat()">💾 Export</button>
+        <button onclick="window.history.back()">✖ Close</button>
+    </div>
+</div>
+<div class="model-bar" id="modelBar">Connecting to Ollama...</div>
+<div class="messages" id="messages"></div>
+<div class="bottom">
+    <div class="attach-row">
+        <button class="attach-btn" onclick="window.pythonAttachImage()">🖼️ Image</button>
+        <button class="attach-btn" onclick="window.pythonAttachFile()">📎 File</button>
+        <label style="margin-left:auto;font-size:13px;color:#666;display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="webSearch" checked> 🔍 Web search
+        </label>
+    </div>
+    <div class="input-row">
+        <input type="text" id="chatInput" placeholder="Ask anything..." onkeypress="if(event.key==='Enter')sendMessage()">
+        <button class="send-btn" onclick="sendMessage()">➤</button>
+    </div>
+</div>
+<script>
+let history = [];
+let model = null;
+let ollamaOk = false;
+
+async function init() {
+    try {
+        const r = await fetch('http://localhost:8081/api/tags');
+        const d = await r.json();
+        if (d.models && d.models.length) {
+            model = d.models[0].name;
+            ollamaOk = true;
+            document.getElementById('modelBar').textContent = '✓ Connected: ' + model;
+        }
+    } catch(e) {
+        document.getElementById('modelBar').textContent = '⚠️ Ollama not connected';
+    }
+    addBot('👋 Hello! I am DeepTalks.AI. How can I help you today?');
+}
+
+function addUser(text) {
+    const m = document.getElementById('messages');
+    m.innerHTML += '<div class="message user"><div class="message-content">' + text + '</div></div>';
+    m.scrollTop = m.scrollHeight;
+}
+
+function addBot(text) {
+    const m = document.getElementById('messages');
+    let f = text;
+    const blocks = [];
+    f = f.replace(/```(\w+)?\n?([\s\S]*?)```/g, function(_, lang, code) {
+        const idx = blocks.length;
+        window['__c'+idx] = code;
+        blocks.push('<div style="position:relative"><button class="copy-btn" onclick="navigator.clipboard.writeText(window[\'__c'+idx+'\'])">📋</button><pre><code>' + code.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</code></pre></div>');
+        return '%%'+idx+'%%';
+    });
+    f = f.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    f = f.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    f = f.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" style="color:#667eea">$1</a>');
+    f = f.replace(/\n/g,'<br>');
+    blocks.forEach((b,i) => f = f.replace('%%'+i+'%%', b));
+    m.innerHTML += '<div class="message bot"><div class="message-content">' + f + '</div></div>';
+    m.scrollTop = m.scrollHeight;
+}
+
+async function sendMessage() {
+    const inp = document.getElementById('chatInput');
+    const q = inp.value.trim();
+    if (!q) return;
+    inp.value = '';
+    addUser(q);
+    history.push({role:'user', content:q});
+    addBot('⏳ Thinking...');
+    const msgs = document.getElementById('messages');
+    const last = msgs.lastElementChild;
+    try {
+        const prompt = history.map(m => (m.role==='user'?'User: ':'Assistant: ') + m.content).join('\n');
+        const r = await fetch('http://localhost:8081/api/generate', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({model: model||'mistral:latest', prompt, stream:false,
+                system:'You are DeepTalks.AI. Answer conversationally. Only use code blocks for actual code.'})
+        });
+        const d = await r.json();
+        const reply = d.response || 'No response';
+        last.remove();
+        addBot(reply);
+        history.push({role:'assistant', content:reply});
+    } catch(e) {
+        last.remove();
+        addBot('❌ Error: ' + e.message);
+    }
+}
+
+function newChat() {
+    history = [];
+    document.getElementById('messages').innerHTML = '';
+    addBot('👋 New chat started!');
+}
+
+function exportChat() {
+    if (!history.length) { addBot('No messages to export.'); return; }
+    var ts = new Date().toISOString().slice(0,19).replace(/[:.]/g,'-');
+    var text = 'DeepBrowse Chat\nDate: ' + new Date().toLocaleString() + '\n\n';
+    history.forEach(m => text += (m.role==='user'?'You: ':'AI: ') + m.content + '\n\n');
+    window._exportChatContent = text;
+    window._exportChatFilename = 'chat_' + ts + '.txt';
+    window._exportChatRequested = true;
+    addBot('💾 Saving chat...');
+}
+
+init();
+</script>
+</body>
+</html>"""
+
+    def _handle_chat_export(self, requested, tab):
+        """Handle chat export request from JS"""
+        if not requested:
+            return
+        import os, datetime
+        # Clear the flag
+        if tab and tab.browser:
+            tab.browser.page().runJavaScript("window._exportChatRequested = false;")
+        # Get content and filename
+        def do_export(content_arr):
+            if not content_arr or len(content_arr) < 2:
+                return
+            text, filename = content_arr[0], content_arr[1]
+            if not text or not filename:
+                return
+            export_dir = "/shared/exports/chats" if os.path.exists("/shared") else os.path.expanduser("~/.mybrowser/exports/chats")
+            os.makedirs(export_dir, exist_ok=True)
+            filepath = os.path.join(export_dir, filename)
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(text)
+                self.status.showMessage(f"💾 Chat saved: {filename}", 5000)
+                if tab and tab.browser:
+                    tab.browser.page().runJavaScript(
+                        f"typeof addBotMessage === 'function' && addBotMessage('💾 Saved to shared/exports/chats/{filename}')"
+                    )
+            except Exception as e:
+                self.status.showMessage(f"❌ Export failed: {e}", 3000)
+        
+        if tab and tab.browser:
+            tab.browser.page().runJavaScript(
+                "[window._exportChatContent || '', window._exportChatFilename || '']",
+                do_export
+            )
+
     def _chat_attach_image(self):
         """🖼️ Image attach — native file picker → injects into chatbot via JS"""
         import base64, mimetypes, json as _json
@@ -3220,7 +3691,7 @@ class ModernBrowser(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("My Browser - Privacy Edition")
+    app.setApplicationName("DeepBrowse - Privacy Edition")
     app.setFont(QFont("Segoe UI", 10))
     
     window = ModernBrowser()
