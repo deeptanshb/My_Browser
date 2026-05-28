@@ -1,21 +1,9 @@
-# 🦕 My Browser — Privacy Desktop Browser with AI & Security
+# 🦕 DeepBrowse — Privacy Browser with AI & Security
 
-> A fully custom desktop web browser built in **Python + PyQt6**, featuring a local AI chatbot (via Ollama), real-time ad/tracker blocking, IP masking, social media quick tabs, and a live security dashboard.  
-> Can be run **locally** or **deployed to any cloud server** via Docker — accessible from any web browser through noVNC.
-
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Local Setup (No Docker)](#local-setup-no-docker)
-- [Docker Setup (Cloud / Remote Access)](#docker-setup-cloud--remote-access)
-- [AI Chatbot (Ollama)](#ai-chatbot-ollama)
-- [Module Reference](#module-reference)
-- [Ports & Services](#ports--services)
-- [Cloud Deployment](#cloud-deployment)
-- [Troubleshooting](#troubleshooting)
+> A custom desktop web browser built in **Python + PyQt6**, Dockerized for cloud deployment via noVNC.
+> Features a local AI chatbot (DeepTalks.AI via Ollama), Tor anonymity, real ad/tracker blocking,
+> search engine enforcement, IP masking, and a live security dashboard.
+> **© Deeptanshu Bhattacharya**
 
 ---
 
@@ -23,19 +11,49 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Multi-Engine Search** | Google, Brave, DuckDuckGo, Bing, Yahoo, custom home |
-| 🤖 **AI Chatbot (DeepTalks.AI)** | Local LLM via Ollama — no data sent to cloud |
-| 🚫 **Ad / Tracker Blocking** | Real-time request interception with live block counter |
-| 🎭 **IP Masking** | 4 algorithms: SHA256 hash, XOR, random subnet, octet rotation |
-| 📱 **Social Tabs** | Quick-access to Facebook, Instagram, Gmail, Telegram |
-| 🛡️ **Security Dashboard** | Session threat scoring, alert log, block rate, grade A–F |
+| 🔍 **Multi-Engine Search** | Google, Brave, DuckDuckGo, Yahoo, Bing — enforced via settings |
+| 💡 **Search Suggestions** | Real-time autocomplete via DuckDuckGo API |
+| 🤖 **DeepTalks.AI** | Local LLM chatbot via Ollama — no cloud, fully private |
+| 🧅 **Tor Anonymity** | Route all traffic through Tor — verified anonymous browsing |
+| 🚫 **Ad/Tracker Blocking** | Real-time request interception — 20+ blocked domains |
+| 🎭 **IP Masking** | 4 algorithms: SHA256 hash, XOR, random subnet, rotate octets |
+| 📱 **Social Quick Tabs** | Facebook, Instagram, Gmail, Telegram |
+| 🛡️ **Security Dashboard** | Session threat scoring, alert log, block rate, A–F grade |
 | 🌐 **Network Monitor** | Per-request logging with allow/block status |
-| 🔐 **Privacy Logger** | Browsing history stored locally, never uploaded |
+| 🔐 **Privacy Logger** | Local search + page visit logs — never uploaded |
 | 📚 **Bookmarks** | Local bookmark management |
-| ⬇️ **Download Manager** | Built-in downloads with progress tracking |
-| 🧩 **Extension System** | Custom JS/CSS injection per site |
-| 🔌 **VPN Proxy Support** | HTTP/SOCKS5 proxy configuration |
-| 🐳 **Docker / Cloud** | Full remote desktop access via noVNC |
+| ⬇️ **Download Manager** | Built-in downloads with progress |
+| 🧩 **Extensions** | Custom JS/CSS injection per site |
+| 💾 **Chat Export** | Save AI conversations to shared folder |
+| 🐳 **Docker/Cloud** | Full remote desktop via noVNC — any browser, any OS |
+
+---
+
+## Architecture
+
+```
+Your Web Browser (any device, any OS)
+        │  HTTP :6080
+        ▼
+  noVNC web UI (websockify)
+        │  WebSocket → VNC :5900
+        ▼
+  x11vnc ──► Xvfb (virtual display :99)
+                     │
+                     ▼
+            DeepBrowse (PyQt6 + QtWebEngine)
+            ├── Network Interceptor (ad blocking)
+            ├── IP Masking Monitor
+            ├── Social Tab Manager
+            └── Security Dashboard
+                     │
+              CORS Proxy :8081
+              ├── /api/*         → Ollama :11434 (AI)
+              ├── /search        → DuckDuckGo (web search)
+              └── /autocomplete  → DDG suggestions
+                     │
+              Tor SOCKS5 :9050 (anonymity)
+```
 
 ---
 
@@ -44,12 +62,13 @@
 ```
 browser/
 ├── custom.py                  # Main browser — ModernBrowser(QMainWindow)
-├── launch_mybrowser.py        # Startup orchestrator (checks deps, starts services)
-├── ollama_cors_proxy.py       # Flask CORS bridge: Ollama AI + DuckDuckGo search
+├── launch_mybrowser.py        # Startup orchestrator (proxy, deps, Qt init)
+├── ollama_cors_proxy.py       # Flask CORS bridge: Ollama + DDG + autocomplete
 ├── requirements.txt           # Python dependencies
-├── install.sh                 # Linux one-click installer (local, no Docker)
-├── install.bat                # Windows one-click installer (local, no Docker)
-├── LICENSE                    # License file
+├── install.sh                 # Linux one-click local installer
+├── install.bat                # Windows one-click local installer
+├── start.sh                   # One-command full-stack launcher
+├── Makefile                   # Convenience commands
 │
 ├── modules/                   # Security microservices
 │   ├── __init__.py
@@ -59,299 +78,295 @@ browser/
 │   └── security_monitor.py   # Threat scoring & alert dashboard
 │
 ├── docker/                    # Docker support files
-│   ├── supervisord.conf       # Process manager: Xvfb → VNC → noVNC → Browser
-│   └── entrypoint.sh          # Container startup script
+│   ├── supervisord.conf       # Process manager (Xvfb→Fluxbox→VNC→noVNC→Browser)
+│   ├── entrypoint.sh          # Container startup script
+│   ├── maximize.sh            # Window maximize utility
+│   └── healthcheck.sh         # Service health checker
+│
+├── shared/                    # Host ↔ Container file exchange folder
+│   ├── uploads/               # Drop files here → available in browser/AI
+│   └── exports/               # Exported logs and AI chats appear here
+│       └── chats/             # AI conversation exports
 │
 ├── Dockerfile                 # Docker image definition
 ├── docker-compose.yml         # One-command cloud deployment
-├── .dockerignore              # Build context exclusions
-├── README.md                  # This file
-│
-├── screenshots/               # App screenshots
-└── myenv/                     # Local Python venv (not used in Docker)
+└── .dockerignore              # Build context exclusions
 ```
 
 ---
 
-## Local Setup (No Docker)
+## Quick Start
 
 ### Prerequisites
 
-- Ubuntu 22.04 / 24.04 (or Windows 10/11)
-- Python 3.10+
-- Ollama (optional, for AI chatbot)
+- Ubuntu 22.04 / 24.04
+- Docker + Docker Compose v2
+- Ollama (for AI chatbot)
+- Tor (for anonymous browsing)
 
-### Linux — Quick Install
-
-```bash
-cd ~/Desktop/browser
-chmod +x install.sh
-./install.sh
-```
-
-Or manually:
+### 1 — Install Docker
 
 ```bash
-# Install PyQt6
-sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine -y
-
-# Install Python dependencies
-pip3 install flask flask-cors requests --break-system-packages
-
-# Run
-python3 launch_mybrowser.py
+curl -fsSL https://get.docker.com | sh
+sudo apt install docker-compose-plugin -y
+sudo usermod -aG docker $USER && newgrp docker
+docker --version && docker compose version
 ```
 
-### Windows — Quick Install
-
-```cmd
-install.bat
-```
-
-Or manually:
-```cmd
-pip install PyQt6 PyQt6-WebEngine flask flask-cors requests
-python launch_mybrowser.py
-```
-
----
-
-## Docker Setup (Cloud / Remote Access)
-
-Docker lets you run the browser on any server and access it from any web browser — no installation needed on the client side.
-
-### How it works
-
-```
-Your Web Browser (any device)
-        │  HTTP :6080
-        ▼
-  noVNC web UI
-        │  WebSocket → VNC :5900
-        ▼
-  x11vnc  ──►  Xvfb (virtual display :99)
-                      │
-                      ▼
-             My Browser (PyQt6 GUI)
-             ├── Network Interceptor
-             ├── IP Masking Monitor
-             ├── Social Tab Manager
-             └── Security Dashboard
-                      │
-               CORS Proxy :8081
-                      │
-               Ollama :11434 (AI)
-```
-
-### Step 1 — Verify Docker
-
-```bash
-docker --version          # Docker version 29.x.x
-docker compose version    # Docker Compose version v2.x.x
-```
-
-### Step 2 — Configure for Ollama (only change needed)
-
-If Ollama is running on your **host machine**, edit `docker-compose.yml` under the `mybrowser:` service:
-
-```yaml
-mybrowser:
-  environment:
-    - SCREEN_WIDTH=1280
-    - SCREEN_HEIGHT=800
-    - SCREEN_DEPTH=24
-    - NOVNC_PORT=6080
-    - VNC_PORT=5900
-    - CORS_PROXY_PORT=8081
-    - OLLAMA_HOST=host.docker.internal    # ← change this line
-  extra_hosts:
-    - "host.docker.internal:host-gateway"  # ← add this block
-```
-
-**This is the ONLY change needed.** Everything else is already correct.
-
-### Step 3 — Build
-
-```bash
-cd ~/Desktop/browser
-docker compose build
-```
-
-First build takes **3–5 minutes**. Subsequent builds are cached and fast.
-
-### Step 4 — Run
-
-```bash
-# Foreground (see all logs)
-docker compose up
-
-# Background
-docker compose up -d
-```
-
-### Step 5 — Open in browser
-
-```
-http://localhost:6080/vnc.html
-```
-
-Click **Connect** — the full browser desktop appears in your web browser.
-
-### Useful Docker commands
-
-```bash
-# View live logs
-docker compose logs -f mybrowser
-
-# Check all running processes inside container
-docker exec mybrowser supervisorctl status
-
-# Restart browser without rebuilding
-docker compose restart mybrowser
-
-# Open a shell inside the container
-docker exec -it mybrowser bash
-
-# Stop everything
-docker compose down
-
-# Stop and wipe saved data
-docker compose down -v
-```
-
----
-
-## AI Chatbot (Ollama)
-
-The browser includes **DeepTalks.AI** — a built-in AI chatbot powered by a local Ollama LLM. No data leaves your machine.
-
-### Install Ollama on host
+### 2 — Install Ollama with auto-start
 
 ```bash
 curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull mistral    # ~4GB recommended model
 
-# Pull a model
-ollama pull mistral        # ~4GB, good balance
-ollama pull llama3.2       # smaller, faster
-
-# Start
-ollama serve
+# Configure to listen on all interfaces (required for Docker)
+sudo mkdir -p /etc/systemd/system/ollama.service.d/
+sudo tee /etc/systemd/system/ollama.service.d/override.conf << 'EOF'
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ollama
 ```
 
-Then apply the `docker-compose.yml` change from Step 2 above.
-
-### Ollama inside Docker (alternative)
-
-Uncomment the `ollama:` service block in `docker-compose.yml`, then:
+### 3 — Install Tor with auto-start
 
 ```bash
-docker compose up --build
-docker exec -it ollama ollama pull mistral
+sudo apt install tor -y
+
+# Configure to listen on all interfaces
+echo "SocksPort 0.0.0.0:9050" | sudo tee -a /etc/tor/torrc
+sudo systemctl enable --now tor@default
+
+# Verify
+ss -tlnp | grep 9050   # should show 0.0.0.0:9050
 ```
 
-### No AI (browser-only)
+### 4 — Build the browser
 
-Leave everything as-is. The browser works fully; the chatbot shows a fallback message.
-
----
-
-## Module Reference
-
-### `custom.py` — Main Browser
-Core application. `ModernBrowser(QMainWindow)` with tab management, search engines, privacy logging, bookmarks, downloads, extension system, proxy config, and full microservice integration.
-
-### `launch_mybrowser.py` — Launcher
-Startup orchestrator: checks dependencies, detects Ollama, starts CORS proxy, initialises Qt application, handles cleanup on exit.
-
-### `ollama_cors_proxy.py` — CORS Bridge
-Flask server on `:8081`. Solves null-origin CORS for the home page loaded via `setHtml()`.
-- `/api/*` → Ollama at `:11434`
-- `/search?q=` → DuckDuckGo Instant Answer API
-- `/health` → status check
-
-### `modules/network_interceptor.py`
-Default blocklist of 20+ ad/tracker domains. User-extensible, persisted to `~/.mybrowser/security/blocked_domains.json`. Emits PyQt signals for live UI updates.
-
-### `modules/security_monitor.py`
-Session threat scoring: `LOW → MEDIUM → HIGH → CRITICAL` based on blocked request count. Runs a 5-check security audit and assigns a grade A–F.
-
-### `modules/ip_masking.py`
-Display-layer IP obfuscation (does not route traffic). Algorithms: `simple_hash`, `xor_mask`, `random_subnet`, `rotate_octets`.
-
-### `modules/social_tabs.py`
-Quick-launch tabs for Facebook, Instagram, Gmail, Telegram.
+```bash
+cd ~/Desktop/browser
+docker compose build    # First build: ~5 minutes (downloads Ubuntu + PyQt6 + noVNC)
+```
 
 ---
 
-## Ports & Services
+## Starting All Services
 
-| Port | Service | Notes |
-|------|---------|-------|
-| `6080` | **noVNC web UI** | Open this in your browser |
-| `5900` | VNC direct | For native VNC clients |
-| `8081` | CORS Proxy | Ollama + DuckDuckGo relay |
-| `11434` | Ollama | Only if running Ollama in Docker |
+```bash
+~/Desktop/browser/start.sh
+```
+
+This starts Tor + Docker browser. Ollama starts automatically on boot via systemd.
+
+To stop:
+```bash
+cd ~/Desktop/browser && docker compose down
+```
+
+---
+
+## Accessing the Browser
+
+Open in **any web browser** on any device:
+
+```
+http://localhost:6080/vnc.html?autoconnect=1&resize=scale
+```
+
+For network/cloud access:
+```
+http://<machine-ip>:6080/vnc.html?autoconnect=1&resize=scale
+```
+
+No installation needed on client — works on Windows, Mac, Linux, Android, iOS.
+
+---
+
+## Feature Guide
+
+### Search Engine
+
+1. Select engine in navbar dropdown (Google / Brave / DuckDuckGo / Yahoo / DeepBrowse)
+2. For **DeepBrowse** mode: Privacy → Settings → Search Engine → select backend
+3. Type in URL bar or home page — autocomplete suggestions appear after 2 characters
+4. Logs show the actual engine used
+
+### Tor Anonymity
+
+**Enable:**
+1. Privacy → Privacy Settings
+2. Host: `socks5://host.docker.internal` — Port: `9050`
+3. Check ✅ Enable Proxy/VPN → Save Settings
+
+**Verify:**
+Browse to `https://httpbin.org/ip` — the IP shown will be a Tor exit node, not your real IP.
+
+For full verification: `https://check.torproject.org`
+
+**Notes:**
+- Browsing is slower with Tor — traffic routes through 3+ encrypted relays
+- Disable proxy for normal speed, enable only when anonymity needed
+- AI chatbot queries stay local — they do not go through Tor
+
+### AI Chatbot (DeepTalks.AI)
+
+Click **🦖 deeptalks.ai** button (bottom right).
+
+| Button | Function |
+|--------|----------|
+| 🆕 New | Clear chat and start fresh |
+| 💾 Save | Export chat to `shared/exports/chats/` |
+| 🖼️ Image | Attach image for AI to analyze |
+| 📎 File | Attach text file for AI to read |
+| 🔍 Web search | Toggle DuckDuckGo web context |
+
+Every code block has a **📋 Copy** button.
+
+### Privacy Logging
+
+- View: Privacy → View Search Logs (Searches tab + Page Visits tab)
+- Export: click Export → file saved to `~/Desktop/browser/shared/exports/`
+- Clear: click Clear Logs
+
+### Ad Blocking
+
+- 20+ tracker domains blocked by default
+- Add custom: Security → Network Monitor → Block Domain
+- Live stats in Security → Network Monitor
+
+### IP Masking
+
+- Security → IP Masking → select algorithm → Apply
+- **Note:** display-layer only — does not route traffic
+- Real anonymity: use Tor proxy
+
+### P2P File Transfer
+
+- **Send:** Security → P2P Send File → choose file from `shared/uploads/` → share IP + port 9876
+- **Receive:** Security → P2P Receive File → enter sender IP + port → saves to `shared/`
+
+---
+
+## File Sharing with Docker
+
+```
+Host: ~/Desktop/browser/shared/
+Container: /shared/
+```
+
+**Upload files to browser/AI:**
+```bash
+cp myfile.txt ~/Desktop/browser/shared/uploads/
+# Then in browser: AI → 📎 File → opens at /shared/uploads/
+```
+
+**Get exported files:**
+```bash
+ls ~/Desktop/browser/shared/exports/
+ls ~/Desktop/browser/shared/exports/chats/
+```
+
+Files appear instantly — no `docker cp` needed.
 
 ---
 
 ## Cloud Deployment
 
 ```bash
-# 1. Open port 6080 in your cloud provider's firewall
+# On any Ubuntu VPS (AWS, DigitalOcean, GCP, Oracle, etc.)
+cd ~/browser
+docker compose build
+~/browser/start.sh
 
-# 2. SSH into your VM, transfer the project, then:
-docker compose up -d
-
-# 3. Access from anywhere:
-http://<your-vm-public-ip>:6080/vnc.html
+# Open port 6080 in your cloud firewall/security group
+# Access from anywhere:
+# http://<vps-ip>:6080/vnc.html?autoconnect=1&resize=scale
 ```
 
-### Add VNC password (recommended for public access)
+### Add VNC Password (recommended for public access)
 
-In `docker/supervisord.conf`, change the x11vnc command:
+In `docker/supervisord.conf`, add `-passwd YourPassword` to x11vnc command, then rebuild.
 
-```ini
-command=x11vnc -display :99 -passwd YourSecurePassword -listen 0.0.0.0 -xkb -ncache 10 -ncache_cr -forever -shared
-```
+---
 
-Rebuild: `docker compose up --build`
-
-### Persist data
-
-Browser data is saved in a named Docker volume automatically. To back up:
+## Useful Commands
 
 ```bash
-docker run --rm \
-  -v browser_mybrowser_data:/data \
-  -v $(pwd):/backup \
-  ubuntu tar czf /backup/mybrowser_backup.tar.gz /data
+# View live logs
+docker compose logs -f mybrowser
+
+# Check all processes inside container
+docker exec mybrowser supervisorctl status
+
+# Full health check
+make health
+
+# Shell into container
+docker exec -it mybrowser bash
+
+# Restart browser only (no rebuild)
+docker compose restart mybrowser
+
+# Stop everything
+docker compose down
+
+# Wipe all saved data
+docker compose down -v
 ```
 
 ---
 
 ## Troubleshooting
 
-### Blank screen in noVNC
+### Black screen in noVNC
 ```bash
+Ctrl+Shift+R    # hard refresh in Chrome
 docker exec mybrowser supervisorctl status
-docker exec mybrowser cat /var/log/supervisor/mybrowser.log
+docker exec mybrowser tail -20 /var/log/supervisor/mybrowser.log
 ```
 
-### AI not responding
+### AI says "Limited mode"
 ```bash
-curl http://localhost:8081/health
+sudo systemctl status ollama
+curl http://localhost:11434/api/tags
 docker exec mybrowser curl http://host.docker.internal:11434/api/tags
 ```
 
-### PyQt6 errors on local run
+### Tor not working
 ```bash
-sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine -y
+sudo systemctl status tor@default
+ss -tlnp | grep 9050
+docker exec mybrowser curl --socks5 host.docker.internal:9050 --max-time 30 https://httpbin.org/ip
 ```
 
-### Build fails — no space left
+### Wrong search engine
 ```bash
-docker system prune -a
+docker exec mybrowser python3 -c "
+import json; f='/root/.mybrowser/settings.json'
+d=json.load(open(f)); d['backend_search_engine']='DuckDuckGo'
+json.dump(d,open(f,'w'),indent=2); print('Fixed')
+"
+docker compose restart mybrowser
 ```
+
+### Export files not appearing
+```bash
+docker exec mybrowser ls /shared/exports/
+sudo chmod -R 777 ~/Desktop/browser/shared/
+```
+
+---
+
+## Ports
+
+| Port | Service | Notes |
+|------|---------|-------|
+| `6080` | **noVNC web UI** | Main access — open in any browser |
+| `5900` | VNC direct | For native VNC clients |
+| `8081` | CORS Proxy | Ollama + DuckDuckGo relay |
+| `11434` | Ollama | AI model server (host) |
+| `9050` | Tor SOCKS5 | Anonymous proxy (host) |
 
 ---
 
@@ -361,16 +376,18 @@ docker system prune -a
 |-------|-----------|
 | Language | Python 3.10+ |
 | GUI Framework | PyQt6 + QtWebEngine (Chromium) |
-| AI Backend | Ollama (local LLM) |
+| AI Backend | Ollama (local LLM — Mistral, LLaMA3, etc.) |
 | CORS Bridge | Flask + Flask-CORS |
-| Containerisation | Docker + Docker Compose |
+| Anonymity | Tor SOCKS5 proxy |
+| Containerisation | Docker + Docker Compose v2 |
 | Virtual Display | Xvfb |
-| Remote Desktop | x11vnc + noVNC |
+| Window Manager | Fluxbox |
+| Remote Desktop | x11vnc + noVNC (WebSocket) |
 | Process Management | Supervisord |
-| Search Backend | DuckDuckGo Instant Answer API |
+| Search Backend | DuckDuckGo Instant Answer + Autocomplete API |
+| DNS | Cloudflare DoH (1.1.1.1) / Google (8.8.8.8) |
 
 ---
 
-## License
-
-See [LICENSE](LICENSE) for terms.
+*DeepBrowse — Privacy-first browser with local AI, built for cloud deployment.*
+*© Deeptanshu Bhattacharya | VIT Chennai | B.Tech ECE 2026*
