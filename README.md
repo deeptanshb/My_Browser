@@ -390,4 +390,4 @@ sudo chmod -R 777 ~/Desktop/browser/shared/
 ---
 
 *DeepBrowse — Privacy-first browser with local AI, built for cloud deployment.*
-*© Deeptanshu Bhattacharya | VIT Chennai | B.Tech ECE 2026*
+*© Deeptanshu Bhattacharya | VIT Chennai | B.Tech ECM 2026*
